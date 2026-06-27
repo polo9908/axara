@@ -13,8 +13,8 @@ by construction.
 | Package | Role | Status |
 |---|---|---|
 | `packages/core` | Shared logic: DTCG token parsing, static drift analysis, RGAA/axe wrapper, Ara export | ✅ Step 1 & 2 |
+| `packages/mcp-server` | Model Context Protocol server (JSON-RPC 2.0 / stdio) | ✅ Step 3 |
 | `packages/cli` | Command-line executable | ⏳ planned |
-| `packages/mcp-server` | Model Context Protocol server (JSON-RPC 2.0 / stdio) | ⏳ planned |
 | `packages/runtime` | Headless Playwright engine (focus traps, live contrast, Figma sync) | ⏳ planned |
 
 ## What works today (`@a11yengine/core`)
@@ -25,16 +25,20 @@ by construction.
    auto-fixable `var(--token)` suggestions with confidence scores.
 2. **RGAA wrapper** — runs axe-core headlessly, maps ~80 axe rules onto RGAA 4.1
    criteria, and exports a DINUM/**Ara**-compatible accessibility declaration.
+3. **MCP server** — exposes `get_design_system_rules` and `validate_component_code`
+   to AI agents over JSON-RPC 2.0 / stdio, with an accessibility system prompt.
 
 ```bash
 pnpm install
 pnpm -r build
-pnpm -r test                      # 57 tests
-node examples/smoke.mjs           # design-drift demo
-node examples/rgaa-smoke.mjs      # RGAA → Ara demo
+pnpm -r test                                   # 75 tests
+node examples/smoke.mjs                         # design-drift demo
+node examples/rgaa-smoke.mjs                    # RGAA → Ara demo
+node packages/mcp-server/scripts/stdio-smoke.mjs # MCP server over stdio
 ```
 
-See [`packages/core/README.md`](packages/core/README.md) for the full API.
+See [`packages/core/README.md`](packages/core/README.md) and
+[`packages/mcp-server/README.md`](packages/mcp-server/README.md) for the full APIs.
 
 ## Requirements
 
@@ -45,7 +49,7 @@ See [`packages/core/README.md`](packages/core/README.md) for the full API.
 
 - [x] **Step 1** — Monorepo, ultra-strict TypeScript, DTCG parser & drift analyzer
 - [x] **Step 2** — axe-core wrapper, RGAA mapping, Ara export
-- [ ] **Step 3** — Active MCP server (`get_design_system_rules`, `validate_component_code`)
+- [x] **Step 3** — Active MCP server (`get_design_system_rules`, `validate_component_code`)
 - [ ] **Step 4** — Playwright runtime (focus-trap detection) & Figma Variables sync
 
 ## License

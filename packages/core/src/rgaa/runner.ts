@@ -45,10 +45,28 @@ export interface RunAxeOptions {
    * contrast pass belongs to the Playwright runtime (step 4).
    */
   readonly contrast?: boolean;
+  /** Additional axe rule ids to disable (e.g. page-level rules for a snippet). */
+  readonly disableRules?: readonly string[];
 }
 
 /** Contrast rules that require real rendering and are disabled under JSDOM. */
 const CONTRAST_RULES = ['color-contrast', 'color-contrast-enhanced'] as const;
+
+/**
+ * Document-scoped rules that are meaningless when auditing an isolated component
+ * fragment (it has no page heading, landmarks, skip-link, …). Callers validating
+ * a snippet should pass these via `disableRules`.
+ */
+export const PAGE_SCOPED_RULES: readonly string[] = [
+  'page-has-heading-one',
+  'landmark-one-main',
+  'region',
+  'bypass',
+  'landmark-unique',
+  'landmark-complementary-is-top-level',
+  'landmark-no-duplicate-banner',
+  'landmark-no-duplicate-contentinfo',
+];
 
 function wrapDocument(html: string): string {
   // If the snippet is already a full document, use it as-is; otherwise wrap it
@@ -85,10 +103,10 @@ export async function runAxeOnHtml(
       runOnly: { type: 'tag', values: [...(options.tags ?? DEFAULT_AXE_TAGS)] },
       resultTypes: ['violations', 'incomplete'],
     };
-    if (options.contrast !== true) {
-      runOptions.rules = Object.fromEntries(
-        CONTRAST_RULES.map((id) => [id, { enabled: false }]),
-      );
+    const disabled = new Set<string>(options.disableRules ?? []);
+    if (options.contrast !== true) for (const id of CONTRAST_RULES) disabled.add(id);
+    if (disabled.size > 0) {
+      runOptions.rules = Object.fromEntries([...disabled].map((id) => [id, { enabled: false }]));
     }
     return await win.axe.run(win.document, runOptions);
   } finally {
@@ -107,6 +125,7 @@ export async function auditHtmlRgaa(
     ...(options.tags !== undefined ? { tags: options.tags } : {}),
     ...(options.url !== undefined ? { url: options.url } : {}),
     ...(options.contrast !== undefined ? { contrast: options.contrast } : {}),
+    ...(options.disableRules !== undefined ? { disableRules: options.disableRules } : {}),
   };
   const results = await runAxeOnHtml(html, runOptions);
 

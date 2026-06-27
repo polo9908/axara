@@ -42,6 +42,7 @@ export {
 // Analyzers
 export { analyzeCss, isSpacingProperty, type CssAnalyzeOptions } from './analyzer/css.js';
 export { analyzeTsx, type TsxAnalyzeOptions } from './analyzer/tsx.js';
+export { jsxToHtml } from './analyzer/jsx-to-html.js';
 export {
   evaluateColor,
   evaluateDimension,
@@ -93,6 +94,7 @@ export {
   runAxeOnHtml,
   auditHtmlRgaa,
   DEFAULT_AXE_TAGS,
+  PAGE_SCOPED_RULES,
   type RunAxeOptions,
   type AuditHtmlOptions,
 } from './rgaa/runner.js';
