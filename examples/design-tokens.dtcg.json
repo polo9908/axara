@@ -1,0 +1,23 @@
+{
+  "color": {
+    "$type": "color",
+    "brand": {
+      "primary": { "$value": "#3b82f6", "$description": "Primary brand blue" },
+      "primaryHover": { "$value": "{color.brand.primary}" }
+    },
+    "text": {
+      "default": { "$value": "#111827" },
+      "muted": { "$value": "rgb(107, 114, 128)" }
+    },
+    "surface": {
+      "default": { "$value": "#ffffff" }
+    }
+  },
+  "space": {
+    "$type": "dimension",
+    "xs": { "$value": "4px" },
+    "sm": { "$value": "8px" },
+    "md": { "$value": "16px" },
+    "lg": { "$value": "1.5rem" }
+  }
+}
