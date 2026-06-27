@@ -14,8 +14,8 @@ by construction.
 |---|---|---|
 | `packages/core` | Shared logic: DTCG token parsing, static drift analysis, RGAA/axe wrapper, Ara export | ✅ Step 1 & 2 |
 | `packages/mcp-server` | Model Context Protocol server (JSON-RPC 2.0 / stdio) | ✅ Step 3 |
+| `packages/runtime` | Headless Playwright engine (focus traps) + Figma Variables connector | ✅ Step 4 |
 | `packages/cli` | Command-line executable | ⏳ planned |
-| `packages/runtime` | Headless Playwright engine (focus traps, live contrast, Figma sync) | ⏳ planned |
 
 ## What works today (`@a11yengine/core`)
 
@@ -27,18 +27,24 @@ by construction.
    criteria, and exports a DINUM/**Ara**-compatible accessibility declaration.
 3. **MCP server** — exposes `get_design_system_rules` and `validate_component_code`
    to AI agents over JSON-RPC 2.0 / stdio, with an accessibility system prompt.
+4. **Runtime** — Playwright headless focus-trap detection and a Figma Variables
+   connector that compares the design source of truth against code tokens.
 
 ```bash
 pnpm install
 pnpm -r build
-pnpm -r test                                   # 75 tests
-node examples/smoke.mjs                         # design-drift demo
-node examples/rgaa-smoke.mjs                    # RGAA → Ara demo
-node packages/mcp-server/scripts/stdio-smoke.mjs # MCP server over stdio
+pnpm -r test                                     # 91 tests
+node examples/smoke.mjs                           # design-drift demo
+node examples/rgaa-smoke.mjs                      # RGAA → Ara demo
+node packages/mcp-server/scripts/stdio-smoke.mjs  # MCP server over stdio
+pnpm --filter @a11yengine/runtime exec playwright install chromium
+node packages/runtime/scripts/runtime-smoke.mjs   # focus trap + Figma compare
 ```
 
-See [`packages/core/README.md`](packages/core/README.md) and
-[`packages/mcp-server/README.md`](packages/mcp-server/README.md) for the full APIs.
+See the per-package READMEs for full APIs:
+[`core`](packages/core/README.md) ·
+[`mcp-server`](packages/mcp-server/README.md) ·
+[`runtime`](packages/runtime/README.md).
 
 ## Requirements
 
@@ -50,7 +56,7 @@ See [`packages/core/README.md`](packages/core/README.md) and
 - [x] **Step 1** — Monorepo, ultra-strict TypeScript, DTCG parser & drift analyzer
 - [x] **Step 2** — axe-core wrapper, RGAA mapping, Ara export
 - [x] **Step 3** — Active MCP server (`get_design_system_rules`, `validate_component_code`)
-- [ ] **Step 4** — Playwright runtime (focus-trap detection) & Figma Variables sync
+- [x] **Step 4** — Playwright runtime (focus-trap detection) & Figma Variables sync
 
 ## License
 
