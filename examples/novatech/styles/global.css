@@ -1,0 +1,80 @@
+/* global.css — NovaTech
+ * ❌ Couleurs et espacements codés en dur partout (Design Drift)
+ * ❌ RGAA 10.4 : viewport qui bloque le zoom utilisateur
+ */
+
+/* ❌ Couleur de fond non-tokenisée */
+body {
+  background-color: #f9fafb;
+  font-family: 'Inter', system-ui, sans-serif;
+  color: #111827;
+  margin: 0;
+}
+
+/* ❌ padding non-token (token space.6 = 24px ici, mais écrit en dur) */
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+/* ❌ Couleur codée en dur (exactement color.brand.primary = #6366f1) */
+.btn-primary {
+  background-color: #6366f1;
+  color: #ffffff;
+  padding: 12px 24px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.btn-primary:hover {
+  /* ❌ Couleur non-token — proche de brand.secondary (#8b5cf6) mais pas exacte */
+  background-color: #7c3aed;
+}
+
+/* ❌ Contraste insuffisant : texte #9ca3af sur fond #ffffff ≈ 2.9:1 (RGAA 3.2) */
+.text-muted {
+  color: #9ca3af;
+  font-size: 14px;
+}
+
+/* ❌ spacing non-tokens */
+.card {
+  background-color: #ffffff;
+  border-radius: 12px;
+  padding: 32px;
+  margin-bottom: 16px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.nav-link {
+  color: #6366f1;     /* ✅ exactement brand.primary */
+  text-decoration: none;
+  padding: 8px 16px;  /* ✅ space.2 + space.4 */
+}
+
+.nav-link:hover {
+  color: #4f46e5;     /* ❌ non-token (entre brand.primary et une teinte plus sombre) */
+}
+
+/* ❌ Couleur d'erreur codée en dur (color.status.error = #ef4444 ici ✅ match exact) */
+.form-error {
+  color: #ef4444;
+  font-size: 13px;
+  margin-top: 4px;    /* ✅ space.1 */
+}
+
+/* ❌ Couleur succès codée en dur */
+.badge-success {
+  background-color: #10b981;  /* ✅ exactement color.status.success */
+  color: #ffffff;
+  padding: 4px 8px;
+  border-radius: 9999px;      /* ≈ radius.full mais non-token */
+}
+
+.badge-warning {
+  background-color: #fbbf24;  /* ❌ non-token (proche de color.status.warning #f59e0b) */
+  color: #111827;
+  padding: 4px 8px;
+}

@@ -1,0 +1,40 @@
+{
+  "color": {
+    "$type": "color",
+    "brand": {
+      "primary":   { "$value": "#6366f1", "$description": "Indigo principal" },
+      "secondary": { "$value": "#8b5cf6", "$description": "Violet accent" },
+      "cta":       { "$value": "#f59e0b", "$description": "Jaune appel-à-l'action" }
+    },
+    "neutral": {
+      "900": { "$value": "#111827" },
+      "700": { "$value": "#374151" },
+      "400": { "$value": "#9ca3af" },
+      "100": { "$value": "#f3f4f6" },
+      "white": { "$value": "#ffffff" }
+    },
+    "status": {
+      "success": { "$value": "#10b981" },
+      "error":   { "$value": "#ef4444" },
+      "warning": { "$value": "#f59e0b" }
+    }
+  },
+  "space": {
+    "$type": "dimension",
+    "1": { "$value": "4px" },
+    "2": { "$value": "8px" },
+    "3": { "$value": "12px" },
+    "4": { "$value": "16px" },
+    "6": { "$value": "24px" },
+    "8": { "$value": "32px" },
+    "12": { "$value": "48px" },
+    "16": { "$value": "64px" }
+  },
+  "radius": {
+    "$type": "dimension",
+    "sm":  { "$value": "4px" },
+    "md":  { "$value": "8px" },
+    "lg":  { "$value": "16px" },
+    "full": { "$value": "9999px" }
+  }
+}

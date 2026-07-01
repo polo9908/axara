@@ -1,4 +1,4 @@
-import { parseDtcg } from '@a11yengine/core';
+import { parseDtcg } from '@axaraaudit/core';
 import { describe, expect, it } from 'vitest';
 import { FigmaClient, type FetchLike } from './client.js';
 import { compareTokens } from './compare.js';
@@ -134,7 +134,7 @@ describe('compareTokens', () => {
       },
       space: {
         $type: 'dimension',
-        sm: { $value: '0.5rem' }, // 8px → match Figma 8px
+        sm: { $value: '0.5rem' }, // 8px â†’ match Figma 8px
         lg: { $value: '24px' }, // missing in Figma
       },
     });

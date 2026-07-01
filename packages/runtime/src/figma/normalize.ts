@@ -7,7 +7,7 @@
  * core color utilities so Figma and code values share one canonical form.
  */
 
-import { toHex, type Rgb } from '@a11yengine/core';
+import { toHex, type Rgb } from '@axaraaudit/core';
 import type {
   FigmaRgba,
   FigmaVariable,

@@ -48,7 +48,7 @@ importers:
 
   packages/mcp-server:
     dependencies:
-      '@a11yengine/core':
+      '@axaraaudit/core':
         specifier: workspace:*
         version: link:../core
       '@modelcontextprotocol/sdk':
@@ -70,7 +70,7 @@ importers:
 
   packages/runtime:
     dependencies:
-      '@a11yengine/core':
+      '@axaraaudit/core':
         specifier: workspace:*
         version: link:../core
       playwright:

@@ -12,7 +12,7 @@ import {
   parseDimension,
   toHex,
   type DesignToken,
-} from '@a11yengine/core';
+} from '@axaraaudit/core';
 import type { NormalizedFigmaToken } from './types.js';
 
 export interface TokenMatch {

@@ -6,7 +6,7 @@
  * HTML-shaped, so we strip directives/interpolations with light text passes.
  */
 
-import { jsxToHtml } from '@a11yengine/core';
+import { jsxToHtml } from '@axaraaudit/core';
 
 export type Framework = 'react' | 'vue' | 'html' | 'auto';
 
@@ -14,8 +14,8 @@ export type Framework = 'react' | 'vue' | 'html' | 'auto';
 export function detectFramework(code: string): Exclude<Framework, 'auto'> {
   const hasTemplateTag = /<template[\s>]/i.test(code);
 
-  // React/JSX signals. Note `style={{…}}` (JSX attribute expression) must not be
-  // mistaken for a Vue `{{ }}` interpolation — hence the `=` lookbehind below.
+  // React/JSX signals. Note `style={{â€¦}}` (JSX attribute expression) must not be
+  // mistaken for a Vue `{{ }}` interpolation â€” hence the `=` lookbehind below.
   const reactSignals =
     /className=/.test(code) ||
     /htmlFor=/.test(code) ||
@@ -44,7 +44,7 @@ export function vueToHtml(code: string): string {
   const templateMatch = /<template[^>]*>([\s\S]*?)<\/template>/i.exec(code);
   let html = templateMatch?.[1] ?? code;
 
-  // Mustache interpolations → assumed-present text content.
+  // Mustache interpolations â†’ assumed-present text content.
   html = html.replace(/\{\{[\s\S]*?\}\}/g, DYNAMIC_TEXT);
 
   // Drop Vue directive / binding / event attributes, keep static a11y attributes.

@@ -1,4 +1,4 @@
-/** Public API of @a11yengine/core. */
+/** Public API of @axaraaudit/core. */
 
 // Types
 export type {
@@ -60,6 +60,17 @@ export {
   type SourceFile,
   type AuditOptions,
 } from './analyzer/audit.js';
+
+// Auto-fix (safe, position-based remediation)
+export {
+  applyFixes,
+  fixFile,
+  type AppliedFix,
+  type FixResult,
+  type ApplyFixesOptions,
+  type FixFileResult,
+  type FixFileOptions,
+} from './fix/apply.js';
 
 // RGAA (axe-core wrapper, mapping & DINUM/Ara export)
 export {

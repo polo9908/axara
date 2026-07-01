@@ -3,13 +3,13 @@
  *
  * axe-core is designed to execute inside the page under test. We reproduce that
  * contract headlessly by building a JSDOM realm, injecting the axe-core source
- * (`axe.source`) into it, and invoking `axe.run` from within — the same
+ * (`axe.source`) into it, and invoking `axe.run` from within â€” the same
  * technique `@axe-core/playwright` uses, but against JSDOM instead of a browser.
  *
  * Note: layout-dependent rules (notably `color-contrast`) cannot be fully
  * evaluated without real rendering, so JSDOM returns them as "incomplete"
  * (mapped to `cantTell`). The live, fully accurate contrast pass runs in
- * `@a11yengine/runtime` (Playwright) at step 4; the mapping/export here is shared
+ * `@axaraaudit/runtime` (Playwright) at step 4; the mapping/export here is shared
  * by both paths.
  */
 
@@ -54,7 +54,7 @@ const CONTRAST_RULES = ['color-contrast', 'color-contrast-enhanced'] as const;
 
 /**
  * Document-scoped rules that are meaningless when auditing an isolated component
- * fragment (it has no page heading, landmarks, skip-link, …). Callers validating
+ * fragment (it has no page heading, landmarks, skip-link, â€¦). Callers validating
  * a snippet should pass these via `disableRules`.
  */
 export const PAGE_SCOPED_RULES: readonly string[] = [
@@ -70,7 +70,7 @@ export const PAGE_SCOPED_RULES: readonly string[] = [
 
 function wrapDocument(html: string): string {
   // If the snippet is already a full document, use it as-is; otherwise wrap it
-  // so structural rules (lang, title, …) have a realistic context.
+  // so structural rules (lang, title, â€¦) have a realistic context.
   if (/<html[\s>]/i.test(html)) return html;
   return `<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8"><title>A11yEngine</title></head><body>${html}</body></html>`;
 }

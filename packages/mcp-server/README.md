@@ -1,6 +1,6 @@
-# @a11yengine/mcp-server
+# @axaraaudit/mcp-server
 
-A11yEngine **Model Context Protocol** server — JSON-RPC 2.0 over stdio, built on
+A11yEngine **Model Context Protocol** server â€” JSON-RPC 2.0 over stdio, built on
 the official `@modelcontextprotocol/sdk`. It lets an AI agent generate UI code
 that is token-correct and RGAA-accessible *by construction*.
 
@@ -8,8 +8,8 @@ that is token-correct and RGAA-accessible *by construction*.
 
 The server ships an accessibility **system prompt** as MCP `instructions`
 (surfaced to clients on `initialize`) and as a callable prompt
-(`accessibility_engineer`). In short: never hard-code colors/spacing — reference
-design tokens via `var(--token)` — always provide accessible names and required
+(`accessibility_engineer`). In short: never hard-code colors/spacing â€” reference
+design tokens via `var(--token)` â€” always provide accessible names and required
 ARIA, and validate before delivering.
 
 ## Tools
@@ -39,7 +39,7 @@ don't apply to an isolated fragment.
 ## Run
 
 ```bash
-pnpm --filter @a11yengine/mcp-server build
+pnpm --filter @axaraaudit/mcp-server build
 node packages/mcp-server/dist/index.js          # speaks JSON-RPC on stdio
 node packages/mcp-server/scripts/stdio-smoke.mjs # end-to-end demo
 ```

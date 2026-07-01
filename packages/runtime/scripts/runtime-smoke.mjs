@@ -1,13 +1,13 @@
-// Demo for @a11yengine/runtime: real focus-trap audit (Playwright) + Figma compare.
+// Demo for @axaraaudit/runtime: real focus-trap audit (Playwright) + Figma compare.
 // Run from the package: `node scripts/runtime-smoke.mjs` (needs `playwright install chromium`).
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { parseDtcgString } from '@a11yengine/core';
+import { parseDtcgString } from '@axaraaudit/core';
 import { auditFocusOrder, normalizeFigmaVariables, compareTokens } from '../dist/index.js';
 
 // 1) Focus-trap audit on a real headless browser.
 const clean = await auditFocusOrder('<button>One</button> <a href="#">Two</a>', { maxTabs: 8 });
-console.log('Clean component  →', clean.message);
+console.log('Clean component  â†’', clean.message);
 
 const trap = await auditFocusOrder(
   `<div id="dlg"><button id="t1">A</button><button id="t2">B</button></div>
@@ -20,9 +20,9 @@ const trap = await auditFocusOrder(
    </script>`,
   { maxTabs: 8 },
 );
-console.log('Trapped modal    →', trap.message, `(isTrap=${trap.isTrap}, kind=${trap.trapKind})`);
+console.log('Trapped modal    â†’', trap.message, `(isTrap=${trap.isTrap}, kind=${trap.trapKind})`);
 
-// 2) Figma Variables → compare against the code's DTCG tokens.
+// 2) Figma Variables â†’ compare against the code's DTCG tokens.
 const tokensPath = fileURLToPath(new URL('../../../examples/design-tokens.dtcg.json', import.meta.url));
 const { tokens: codeTokens } = parseDtcgString(readFileSync(tokensPath, 'utf8'));
 
@@ -32,13 +32,13 @@ const figmaMeta = {
     a: { id: 'a', name: 'color/brand/primary', variableCollectionId: 'c', resolvedType: 'COLOR',
          valuesByMode: { m: { r: 0.231, g: 0.51, b: 0.965, a: 1 } } },        // #3b82f6 (matches code)
     b: { id: 'b', name: 'space/sm', variableCollectionId: 'c', resolvedType: 'FLOAT',
-         valuesByMode: { m: 10 } },                                            // 10px vs code 8px → mismatch
+         valuesByMode: { m: 10 } },                                            // 10px vs code 8px â†’ mismatch
   },
 };
 const { tokens: figmaTokens } = normalizeFigmaVariables(figmaMeta);
 const cmp = compareTokens(figmaTokens, codeTokens);
-console.log('\nFigma ↔ code compare →', JSON.stringify(cmp.summary));
-for (const m of cmp.mismatches) console.log(`  mismatch ${m.path}: figma ${m.figmaValue} ≠ code ${m.codeValue}`);
+console.log('\nFigma â†” code compare â†’', JSON.stringify(cmp.summary));
+for (const m of cmp.mismatches) console.log(`  mismatch ${m.path}: figma ${m.figmaValue} â‰  code ${m.codeValue}`);
 for (const m of cmp.missingInCode) console.log(`  missing in code: ${m.path} (${m.value})`);
 
-console.log('\nOK — runtime focus audit + Figma compare ran.');
+console.log('\nOK â€” runtime focus audit + Figma compare ran.');

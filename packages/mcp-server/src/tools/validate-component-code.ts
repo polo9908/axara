@@ -13,7 +13,7 @@ import {
   type AraDeclaration,
   type DriftIssue,
   type RgaaReport,
-} from '@a11yengine/core';
+} from '@axaraaudit/core';
 import { toHtml, type Framework } from '../normalize.js';
 import { resolveTokensPath, loadTokens } from '../tokens-source.js';
 
@@ -28,7 +28,7 @@ export interface ValidateComponentCodeInput {
   readonly checkDrift?: boolean | undefined;
   /**
    * `component` (default) disables page-level RGAA rules (heading-one,
-   * landmarks, skip-link…) that don't apply to an isolated fragment.
+   * landmarks, skip-linkâ€¦) that don't apply to an isolated fragment.
    */
   readonly scope?: ValidationScope | undefined;
 }
@@ -59,10 +59,10 @@ export async function validateComponentCode(
   const { html, framework } = toHtml(input.code, input.framework ?? 'auto');
 
   if (html.trim().length === 0) {
-    notes.push('Aucun balisage exploitable détecté dans le snippet.');
+    notes.push('Aucun balisage exploitable dÃ©tectÃ© dans le snippet.');
   }
 
-  // Structural RGAA audit via axe-core (contrast excluded — needs real layout).
+  // Structural RGAA audit via axe-core (contrast excluded â€” needs real layout).
   const scope = input.scope ?? 'component';
   const rgaa = await auditHtmlRgaa(
     html,
@@ -82,10 +82,10 @@ export async function validateComponentCode(
         const tokens = loadTokens(input.tokensPath !== undefined ? { tokensPath: input.tokensPath } : {});
         drift = analyzeSource({ path: 'snippet.tsx', content: input.code }, tokens.index);
       } else {
-        notes.push('Drift non vérifié : aucun fichier de tokens DTCG trouvé (voir get_design_system_rules).');
+        notes.push('Drift non vÃ©rifiÃ© : aucun fichier de tokens DTCG trouvÃ© (voir get_design_system_rules).');
       }
     } else {
-      notes.push(`Drift non vérifié : détection limitée aux snippets React (framework détecté : ${framework}).`);
+      notes.push(`Drift non vÃ©rifiÃ© : dÃ©tection limitÃ©e aux snippets React (framework dÃ©tectÃ© : ${framework}).`);
     }
   }
 

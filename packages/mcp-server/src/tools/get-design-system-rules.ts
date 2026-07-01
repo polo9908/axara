@@ -4,7 +4,7 @@
  * including the `var(--token)` reference to use in generated code.
  */
 
-import type { TokenCategory } from '@a11yengine/core';
+import type { TokenCategory } from '@axaraaudit/core';
 import { loadTokens } from '../tokens-source.js';
 
 export interface GetDesignSystemRulesInput {
@@ -74,6 +74,6 @@ export function getDesignSystemRules(
     other,
     errors: resolved.errors,
     guidance:
-      'Réutilise ces tokens via leur `reference` (var(--…)). N’écris jamais une couleur ou un espacement en dur.',
+      'RÃ©utilise ces tokens via leur `reference` (var(--â€¦)). Nâ€™Ã©cris jamais une couleur ou un espacement en dur.',
   };
 }

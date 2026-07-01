@@ -1,4 +1,4 @@
-/** Public API of @a11yengine/runtime. */
+/** Public API of @axaraaudit/runtime. */
 
 // Focus / keyboard-trap analysis
 export { analyzeFocusOrder, type AnalyzeOptions } from './focus/trap.js';

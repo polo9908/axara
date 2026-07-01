@@ -1,4 +1,4 @@
-// End-to-end smoke test for @a11yengine/core (run after building core).
+// End-to-end smoke test for @axaraaudit/core (run after building core).
 import { auditPaths } from '../packages/core/dist/index.js';
 
 const report = auditPaths(

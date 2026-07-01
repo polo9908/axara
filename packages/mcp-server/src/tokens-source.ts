@@ -9,7 +9,7 @@
 
 import { existsSync, readFileSync } from 'node:fs';
 import { isAbsolute, resolve } from 'node:path';
-import { parseDtcgString, type DesignToken, type TokenIndex } from '@a11yengine/core';
+import { parseDtcgString, type DesignToken, type TokenIndex } from '@axaraaudit/core';
 
 const CONVENTIONAL_NAMES = [
   'design-tokens.dtcg.json',
