@@ -13,13 +13,18 @@ AxaraAudit analyse ton code et te dit :
 
 ## Installation
 
-```bash
-# Dans ton projet
-pnpm add -D @axaraaudit/cli
+Une seule commande, dans le dossier de ton projet :
 
-# Ou globalement
-pnpm add -g @axaraaudit/cli
+```bash
+npm install -D @axaraaudit/cli
 ```
+
+> 💡 **npm, pnpm, npx — c'est quoi la différence ?**
+> - `npm install` **installe** le package dans ton projet (une seule fois)
+> - `npx axaraaudit ...` **exécute** la commande installée (à chaque usage)
+> - Si ton projet utilise **pnpm**, remplace simplement : `pnpm add -D @axaraaudit/cli` puis `pnpm exec axaraaudit ...` — le comportement est identique.
+>
+> Toutes les commandes ci-dessous utilisent `npx`, qui fonctionne dans tous les cas.
 
 ---
 
