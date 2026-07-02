@@ -1,6 +1,6 @@
 {
   "name": "@axaraaudit/mcp-server",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "A11yEngine Model Context Protocol server (JSON-RPC 2.0 over stdio)",
   "license": "MIT",
   "type": "module",
