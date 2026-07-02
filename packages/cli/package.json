@@ -1,0 +1,51 @@
+{
+  "name": "@axaraaudit/cli",
+  "version": "0.1.0",
+  "description": "Open-source CLI auditor: design-system drift + RGAA 4.1 conformity, with CI gatekeeper and optional Pro cloud gateway",
+  "license": "MIT",
+  "type": "module",
+  "keywords": [
+    "accessibility",
+    "a11y",
+    "rgaa",
+    "wcag",
+    "design-tokens",
+    "cli",
+    "ci",
+    "audit"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/polo9908/axara.git",
+    "directory": "packages/cli"
+  },
+  "bin": {
+    "axaraaudit": "./dist/index.js"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "clean": "rimraf dist",
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "prepublishOnly": "pnpm run build"
+  },
+  "dependencies": {
+    "@axaraaudit/core": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^22.9.0",
+    "rimraf": "^6.0.1",
+    "vitest": "^2.1.4"
+  }
+}
