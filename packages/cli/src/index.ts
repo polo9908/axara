@@ -26,10 +26,13 @@ COMMANDES (open source)
   fix            Applique les corrections sûres (--write pour persister)
                  --all applique aussi les suggestions proches
                  (--min-confidence <0..1>, défaut 0.7)
+                 --ai délègue le reste (RGAA, valeurs sans token) à Claude
+                 (--model pour changer de modèle, défaut claude-opus-4-8)
   init           Génère un .auditorrc.json de démarrage
 
-COMMANDES (passerelle Pro)
+COMMANDES (passerelle Pro & IA)
   login          Enregistre un jeton d'accès (--token <jeton>)
+                 --anthropic-key <clé> active la correction IA (fix --ai)
   logout         Supprime le jeton enregistré
   whoami         Affiche l'identité liée au jeton
 

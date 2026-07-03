@@ -139,15 +139,48 @@ npx axaraaudit fix
 
 # Appliquer les corrections aux fichiers
 npx axaraaudit fix --write
+
+# Inclure les valeurs "proches" d'un token (confiance ≥ 0.7)
+npx axaraaudit fix --all --write
+
+# 🤖 Tout corriger, y compris le RGAA, via Claude (opt-in)
+npx axaraaudit fix --ai --write
 ```
 
-Ce qui est corrigé automatiquement :
-- ✅ Couleur codée en dur = valeur exacte d'un token
-- ✅ Espacement codé en dur = valeur exacte d'un token
+Trois niveaux de correction :
 
-Ce qui n'est pas touché :
-- ❌ Valeur "proche" d'un token (ex: `#5a5fcf` ≈ `#6366f1`) — à toi de décider
-- ❌ Violations RGAA — exigent un choix humain
+| Niveau | Corrige | Garantie |
+|---|---|---|
+| `fix` | Valeurs = token exact | 100% sûr, vérifié position par position |
+| `fix --all` | + valeurs proches d'un token | Seuil de confiance réglable (`--min-confidence`) |
+| `fix --ai` | + RGAA (alt, labels, titres…) + valeurs sans token | Propositions de Claude, diff avant/après |
+
+### 🤖 Correction IA (`fix --ai`)
+
+Le mode IA envoie les fichiers concernés à l'API Anthropic (Claude) pour corriger
+ce que la mécanique ne peut pas : attributs `alt` manquants, labels de formulaire,
+hiérarchie de titres, liens vides, valeurs sans token proche. **Opt-in explicite** —
+rien n'est envoyé sans le flag `--ai`.
+
+Configuration (une seule fois) :
+
+```bash
+# 1. Créer une clé API sur https://console.anthropic.com/settings/keys
+# 2. L'enregistrer :
+npx axaraaudit login --anthropic-key sk-ant-...
+#    (ou variable d'environnement ANTHROPIC_API_KEY, idéal en CI)
+```
+
+Utilisation :
+
+```bash
+npx axaraaudit fix --ai            # prévisualisation : diff avant/après par fichier
+npx axaraaudit fix --ai --write    # applique les corrections proposées
+npx axaraaudit fix --ai --model claude-sonnet-5   # modèle plus économique
+```
+
+Chaque exécution affiche le nombre de tokens API consommés. Le modèle par défaut
+est `claude-opus-4-8`.
 
 ### `axaraaudit init` — Initialisation
 

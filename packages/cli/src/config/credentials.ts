@@ -14,8 +14,10 @@ const CREDENTIALS_DIR = join(homedir(), '.axaraaudit');
 const CREDENTIALS_FILE = join(CREDENTIALS_DIR, 'credentials.json');
 
 export interface StoredCredentials {
-  readonly token: string;
+  readonly token?: string;
   readonly apiUrl?: string;
+  /** Anthropic API key for the opt-in AI fix pass (`fix --ai`). */
+  readonly anthropicKey?: string;
   readonly savedAt: string;
 }
 
@@ -29,10 +31,12 @@ export function readStoredCredentials(): StoredCredentials | null {
   if (!existsSync(CREDENTIALS_FILE)) return null;
   try {
     const parsed = JSON.parse(readFileSync(CREDENTIALS_FILE, 'utf8')) as Partial<StoredCredentials>;
-    if (typeof parsed.token !== 'string' || parsed.token === '') return null;
     return {
-      token: parsed.token,
+      ...(typeof parsed.token === 'string' && parsed.token !== '' ? { token: parsed.token } : {}),
       ...(typeof parsed.apiUrl === 'string' ? { apiUrl: parsed.apiUrl } : {}),
+      ...(typeof parsed.anthropicKey === 'string' && parsed.anthropicKey !== ''
+        ? { anthropicKey: parsed.anthropicKey }
+        : {}),
       savedAt: typeof parsed.savedAt === 'string' ? parsed.savedAt : '',
     };
   } catch {
@@ -47,7 +51,7 @@ export function resolveToken(env: NodeJS.ProcessEnv = process.env): ResolvedToke
     return { token: fromEnv.trim(), source: 'env' };
   }
   const stored = readStoredCredentials();
-  if (stored !== null) {
+  if (stored !== null && stored.token !== undefined) {
     return {
       token: stored.token,
       source: 'file',
@@ -57,15 +61,37 @@ export function resolveToken(env: NodeJS.ProcessEnv = process.env): ResolvedToke
   return null;
 }
 
-export function saveCredentials(token: string, apiUrl?: string): string {
+/** Anthropic key for `fix --ai`: ANTHROPIC_API_KEY env var > credentials file. */
+export function resolveAnthropicKey(env: NodeJS.ProcessEnv = process.env): string | null {
+  const fromEnv = env['ANTHROPIC_API_KEY'];
+  if (typeof fromEnv === 'string' && fromEnv.trim() !== '') return fromEnv.trim();
+  return readStoredCredentials()?.anthropicKey ?? null;
+}
+
+function writeCredentials(payload: StoredCredentials): string {
   mkdirSync(CREDENTIALS_DIR, { recursive: true });
-  const payload: StoredCredentials = {
+  writeFileSync(CREDENTIALS_FILE, `${JSON.stringify(payload, null, 2)}\n`, { mode: 0o600 });
+  return CREDENTIALS_FILE;
+}
+
+export function saveCredentials(token: string, apiUrl?: string): string {
+  const existing = readStoredCredentials();
+  return writeCredentials({
+    ...(existing?.anthropicKey !== undefined ? { anthropicKey: existing.anthropicKey } : {}),
     token,
     ...(apiUrl !== undefined ? { apiUrl } : {}),
     savedAt: new Date().toISOString(),
-  };
-  writeFileSync(CREDENTIALS_FILE, `${JSON.stringify(payload, null, 2)}\n`, { mode: 0o600 });
-  return CREDENTIALS_FILE;
+  });
+}
+
+export function saveAnthropicKey(anthropicKey: string): string {
+  const existing = readStoredCredentials();
+  return writeCredentials({
+    ...(existing?.token !== undefined ? { token: existing.token } : {}),
+    ...(existing?.apiUrl !== undefined ? { apiUrl: existing.apiUrl } : {}),
+    anthropicKey,
+    savedAt: new Date().toISOString(),
+  });
 }
 
 export function clearCredentials(): boolean {

@@ -9,6 +9,7 @@ import {
   clearCredentials,
   maskToken,
   resolveToken,
+  saveAnthropicKey,
   saveCredentials,
   TOKEN_ENV_VAR,
 } from '../config/credentials.js';
@@ -22,15 +23,30 @@ export async function runLogin(argv: readonly string[]): Promise<number> {
     options: {
       token: { type: 'string' },
       'api-url': { type: 'string' },
+      'anthropic-key': { type: 'string' },
     },
     allowPositionals: true,
   });
+
+  // Anthropic key (AI fix pass) — independent of the Pro token.
+  const anthropicKey = values['anthropic-key'];
+  if (anthropicKey !== undefined) {
+    if (anthropicKey.trim() === '') {
+      process.stderr.write(red('Clé Anthropic vide.\n'));
+      return 2;
+    }
+    const path = saveAnthropicKey(anthropicKey.trim());
+    process.stdout.write(green('✓ Clé Anthropic enregistrée — `axaraaudit fix --ai` est maintenant disponible.\n'));
+    process.stdout.write(dim(`Enregistrée dans : ${path}\n`));
+    if (values.token === undefined) return 0;
+  }
 
   const token = values.token ?? process.env[TOKEN_ENV_VAR];
   if (token === undefined || token.trim() === '') {
     process.stderr.write(
       `${red('Aucun jeton fourni.')}\n` +
         `Usage : axaraaudit login --token <jeton> [--api-url <url>]\n` +
+        `        axaraaudit login --anthropic-key <clé>   (correction IA)\n` +
         `        (ou définissez ${TOKEN_ENV_VAR} dans l'environnement)\n`,
     );
     return 2;
