@@ -17,7 +17,8 @@ import {
   PAGE_SCOPED_RULES,
   type SourceFile,
 } from '@axaraaudit/core';
-import { loadRc, mergeRc, resolveTokensPath, ConfigError } from '../config/rc.js';
+import { loadRc, mergeRc, ConfigError } from '../config/rc.js';
+import { loadTokensSource } from '../config/tokens-source.js';
 import { resolveToken } from '../config/credentials.js';
 import { fetchRemoteConfig, uploadReport, ApiError } from '../services/api.js';
 import { collectFiles } from '../scan/walk.js';
@@ -118,13 +119,23 @@ export async function runAudit(argv: readonly string[]): Promise<number> {
     : mergeRc(loaded.rc, { ci: { failUnder: flags.failUnder } });
 
   // ── Collect & analyse (open-source core) ──
-  const tokensJson =
-    inlineTokensJson ?? readFileSync(resolveTokensPath(loaded, flags.tokens), 'utf8').replace(/^﻿/, '');
   const filePaths = collectFiles(loaded.rootDir, rc.include, rc.exclude, rc.extensions);
   const files: SourceFile[] = filePaths.map((path) => ({
     path,
     content: readFileSync(path, 'utf8'),
   }));
+
+  let tokensJson: string;
+  if (inlineTokensJson !== null) {
+    tokensJson = inlineTokensJson;
+  } else {
+    const source = loadTokensSource(loaded, flags.tokens, files);
+    tokensJson = source.json;
+    if (source.origin === 'auto') {
+      log(green(`✓ Zéro-config : ${source.detail}.`));
+      log(dim('  (aucun fichier de tokens déclaré — les custom properties CSS font foi)'));
+    }
+  }
 
   const drift = auditSources(tokensJson, files, { remBasePx: rc.remBasePx });
 

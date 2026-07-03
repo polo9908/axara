@@ -71,6 +71,10 @@ export function analyzeCss(
   root.walkDecls((decl) => {
     const prop = decl.prop.toLowerCase();
 
+    // Custom-property declarations DEFINE tokens; flagging their literal
+    // values as drift would suggest rewriting `--x: #fff` into `--x: var(--x)`.
+    if (prop.startsWith('--')) return;
+
     for (const occ of extractColors(decl.value)) {
       const pos = locate(decl, occ.offset);
       const occurrence: LiteralOccurrence = {

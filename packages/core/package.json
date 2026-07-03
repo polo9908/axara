@@ -1,6 +1,6 @@
 {
   "name": "@axaraaudit/core",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "Core logic: DTCG token parsing, static AST analysis & design-drift detection",
   "license": "MIT",
   "type": "module",

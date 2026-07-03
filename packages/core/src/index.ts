@@ -39,6 +39,14 @@ export {
   type DimensionMatch,
 } from './tokens/dtcg.js';
 
+// Zero-config token extraction from CSS custom properties
+export {
+  extractCssVarTokens,
+  type CssSource,
+  type CssVarExtraction,
+  type ExtractCssVarOptions,
+} from './tokens/css-vars.js';
+
 // Analyzers
 export { analyzeCss, isSpacingProperty, type CssAnalyzeOptions } from './analyzer/css.js';
 export { analyzeTsx, type TsxAnalyzeOptions } from './analyzer/tsx.js';

@@ -27,7 +27,8 @@ import {
   type RgaaFinding,
   type SourceFile,
 } from '@axaraaudit/core';
-import { ConfigError, loadRc, resolveTokensPath } from '../config/rc.js';
+import { ConfigError, loadRc } from '../config/rc.js';
+import { loadTokensSource } from '../config/tokens-source.js';
 import { resolveAnthropicKey } from '../config/credentials.js';
 import { requestFileFix, ClaudeError, CLAUDE_MODEL } from '../services/claude.js';
 import { collectFiles } from '../scan/walk.js';
@@ -103,7 +104,6 @@ export async function runFix(argv: readonly string[]): Promise<number> {
   }
 
   const loaded = loadRc(process.cwd(), values.config);
-  const tokensJson = readFileSync(resolveTokensPath(loaded, values.tokens), 'utf8').replace(/^﻿/, '');
   const filePaths = collectFiles(
     loaded.rootDir,
     loaded.rc.include,
@@ -114,6 +114,12 @@ export async function runFix(argv: readonly string[]): Promise<number> {
     path,
     content: readFileSync(path, 'utf8'),
   }));
+
+  const tokensSource = loadTokensSource(loaded, values.tokens, files);
+  const tokensJson = tokensSource.json;
+  if (tokensSource.origin === 'auto') {
+    process.stderr.write(green(`✓ Zéro-config : ${tokensSource.detail}.\n`));
+  }
 
   const report = auditSources(tokensJson, files, { remBasePx: loaded.rc.remBasePx });
 

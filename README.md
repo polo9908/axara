@@ -11,6 +11,30 @@ AxaraAudit analyse ton code et te dit :
 
 ---
 
+## Essai en 10 secondes (zéro configuration)
+
+Dans n'importe quel projet web — **aucun fichier de config requis** :
+
+```bash
+npx @axaraaudit/cli audit
+```
+
+AxaraAudit détecte automatiquement ton design system depuis les custom
+properties CSS existantes (`:root { --color-primary: ... }`) et audite tout le
+projet : dérives de tokens + accessibilité RGAA, avec un score sur 100.
+
+```
+✓ Zéro-config : 45 tokens extraits de 1 fichier(s) CSS.
+
+  AXARA AUDIT — mon-projet
+  18 fichier(s) analysé(s)
+  ...
+  SCORE  96/100
+```
+
+> Un fichier `design-tokens.dtcg.json` (ou `.auditorrc.json`) reste la source
+> de vérité recommandée dès que tu veux affiner — il prend le dessus s'il existe.
+
 ## Installation
 
 Une seule commande, dans le dossier de ton projet :
