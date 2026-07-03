@@ -70,3 +70,33 @@ describe('applyFixes — naming references', () => {
     expect(applyFixes(css, issues).content).toContain('var(--color-white)');
   });
 });
+
+describe('applyFixes (--all mode: nearest-token opt-in)', () => {
+  it('applies a confident nearest-token suggestion when onlyAutoFixable is false', () => {
+    const css = '.btn { color: #3c83f7; }'; // near miss of color.brand
+    const issues = analyzeCss(css, index, { file: 'a.css' });
+    const { content, applied } = applyFixes(css, issues, { onlyAutoFixable: false });
+    expect(applied).toHaveLength(1);
+    expect(content).toBe('.btn { color: var(--color-brand); }');
+  });
+
+  it('skips (and reports) suggestions below minConfidence', () => {
+    const css = '.btn { color: #3c83f7; }';
+    const issues = analyzeCss(css, index, { file: 'a.css' });
+    const { applied, skipped } = applyFixes(css, issues, {
+      onlyAutoFixable: false,
+      minConfidence: 0.999,
+    });
+    expect(applied).toHaveLength(0);
+    expect(skipped).toHaveLength(1);
+  });
+
+  it('never applies no-token issues even with onlyAutoFixable false', () => {
+    const css = '.btn { color: #00ff99; }'; // far from every token
+    const issues = analyzeCss(css, index, { file: 'a.css' });
+    const noToken = issues.filter((i) => i.match === 'no-token');
+    expect(noToken.length).toBeGreaterThan(0);
+    const { applied } = applyFixes(css, issues, { onlyAutoFixable: false, minConfidence: 0 });
+    expect(applied).toHaveLength(0);
+  });
+});

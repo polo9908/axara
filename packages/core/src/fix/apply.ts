@@ -35,6 +35,12 @@ export interface FixResult {
 export interface ApplyFixesOptions {
   /** Only apply safe exact-token fixes. Default: true. */
   readonly onlyAutoFixable?: boolean;
+  /**
+   * When `onlyAutoFixable` is false, nearest-token suggestions below this
+   * confidence (0–1) are skipped instead of applied. Default: 0.7.
+   * Issues with no close token (`match: 'no-token'`) are never applied.
+   */
+  readonly minConfidence?: number;
 }
 
 /** Offset (0-based) of the start of each 1-based line. */
@@ -60,6 +66,7 @@ export function applyFixes(
   options: ApplyFixesOptions = {},
 ): FixResult {
   const onlyAutoFixable = options.onlyAutoFixable ?? true;
+  const minConfidence = options.minConfidence ?? 0.7;
   const starts = lineStartOffsets(content);
 
   const candidates: Candidate[] = [];
@@ -67,7 +74,14 @@ export function applyFixes(
 
   for (const issue of issues) {
     if (!issue.suggestion) continue;
-    if (onlyAutoFixable && !issue.autoFixable) continue;
+    if (!issue.autoFixable) {
+      if (onlyAutoFixable) continue;
+      // Opt-in mode: apply near-match suggestions, but never wild guesses.
+      if (issue.match !== 'nearest-token' || issue.suggestion.confidence < minConfidence) {
+        skipped.push(issue);
+        continue;
+      }
+    }
 
     const lineStart = starts[issue.line - 1];
     if (lineStart === undefined) {

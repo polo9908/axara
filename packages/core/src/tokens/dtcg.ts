@@ -56,6 +56,12 @@ function pathToCssVar(path: string): string {
   return `--${path.replace(/\./g, '-').replace(/[^a-zA-Z0-9-]/g, '-')}`;
 }
 
+/** Token paths that semantically describe spacing (preferred for spacing props). */
+const SPACING_TOKEN_RE = /^(space|spacing|gap|inset|margin|padding)([.\-_]|$)/i;
+
+/** A spacing token wins a nearest-match when within this margin of the best. */
+const SPACING_SLACK_PX = 2;
+
 function collectLeaves(
   node: unknown,
   path: readonly string[],
@@ -205,22 +211,39 @@ export class TokenIndex {
   exactDimension(literal: string): DesignToken | null {
     const dim = parseDimension(literal, this.remBasePx);
     if (!dim) return null;
-    return this.dimensionByPx.get(dim.px)?.[0] ?? null;
+    const bucket = this.dimensionByPx.get(dim.px);
+    if (!bucket || bucket.length === 0) return null;
+    // Several tokens can share a value (e.g. space.4 and font-size.base are
+    // both 16px). Dimension literals are only collected on spacing properties,
+    // so a spacing-named token is the semantically right suggestion.
+    return bucket.find((token) => SPACING_TOKEN_RE.test(token.path)) ?? bucket[0] ?? null;
   }
 
   nearestDimension(literal: string): DimensionMatch | null {
     const dim = parseDimension(literal, this.remBasePx);
     if (!dim || this.dimensionList.length === 0) return null;
-    let best: { token: DesignToken; dim: Dimension } | null = null;
-    let bestDistance = Number.POSITIVE_INFINITY;
+    let bestAny: DimensionMatch | null = null;
+    let bestSpacing: DimensionMatch | null = null;
     for (const entry of this.dimensionList) {
       const d = dimensionDistance(dim, entry.dim);
-      if (d < bestDistance) {
-        bestDistance = d;
-        best = entry;
+      if (bestAny === null || d < bestAny.distance) {
+        bestAny = { token: entry.token, distance: d };
+      }
+      if (SPACING_TOKEN_RE.test(entry.token.path) && (bestSpacing === null || d < bestSpacing.distance)) {
+        bestSpacing = { token: entry.token, distance: d };
       }
     }
-    return best ? { token: best.token, distance: bestDistance } : null;
+    // Dimension literals are only collected on spacing properties, so a
+    // spacing-named token wins whenever it is nearly as close as the best
+    // overall match (avoids `padding: 14px → var(--font-size-sm)`).
+    if (
+      bestSpacing !== null &&
+      bestAny !== null &&
+      bestSpacing.distance <= bestAny.distance + SPACING_SLACK_PX
+    ) {
+      return bestSpacing;
+    }
+    return bestAny;
   }
 }
 

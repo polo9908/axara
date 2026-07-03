@@ -24,6 +24,8 @@ USAGE
 COMMANDES (open source)
   audit          Analyse le projet (défaut) : dérives de tokens + RGAA
   fix            Applique les corrections sûres (--write pour persister)
+                 --all applique aussi les suggestions proches
+                 (--min-confidence <0..1>, défaut 0.7)
   init           Génère un .auditorrc.json de démarrage
 
 COMMANDES (passerelle Pro)

@@ -86,3 +86,36 @@ describe('parseDtcgString', () => {
     expect(errors[0]).toMatch(/Invalid DTCG JSON/);
   });
 });
+
+describe('spacing-token preference for dimensions', () => {
+  const { index } = parseDtcg({
+    'font-size': { $type: 'dimension', base: { $value: '16px' } },
+    space: { $type: 'dimension', '4': { $value: '16px' }, '5': { $value: '20px' } },
+  });
+
+  it('prefers a space.* token over font-size.* when both match exactly', () => {
+    expect(index.exactDimension('16px')?.path).toBe('space.4');
+  });
+
+  it('prefers a space.* token on nearest-distance ties', () => {
+    // 17px is 1px away from both font-size.base and space.4.
+    expect(index.nearestDimension('17px')?.token.path).toBe('space.4');
+  });
+
+  it('still returns non-spacing tokens when they are the only match', () => {
+    const single = parseDtcg({
+      'font-size': { $type: 'dimension', xs: { $value: '11px' } },
+    });
+    expect(single.index.exactDimension('11px')?.path).toBe('font-size.xs');
+  });
+});
+describe('spacing slack preference', () => {
+  it('prefers a slightly-farther space.* token over a closer font-size.* (2px slack)', () => {
+    const slack = parseDtcg({
+      'font-size': { $type: 'dimension', sm: { $value: '13px' } },
+      space: { $type: 'dimension', '3': { $value: '12px' } },
+    });
+    // 14px: font-size.sm is 1px away, space.3 is 2px away -> spacing wins.
+    expect(slack.index.nearestDimension('14px')?.token.path).toBe('space.3');
+  });
+});
