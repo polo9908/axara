@@ -1,70 +1,240 @@
 # AxaraAudit
 
-**Vérificateur automatique d'accessibilité et de cohérence de design system.**
+**Automatic accessibility and design-system consistency checker.**
 
-AxaraAudit analyse ton code et te dit :
-- Les couleurs/espacements codés en dur qui devraient utiliser tes tokens design (`#6366f1` → `var(--color-brand-primary)`)
-- Les violations d'accessibilité RGAA 4.1 / WCAG (images sans alt, inputs sans label, pièges clavier…)
-- Un score de conformité 0–100 pour bloquer ton pipeline CI si la qualité baisse
+AxaraAudit scans your codebase and tells you three things:
 
-> **Modèle Open-Core** : l'audit local est 100% gratuit et open source. Les fonctionnalités cloud (dashboard, sync distante, historique) sont Pro.
+1. 🎨 Hard-coded colors/spacing that should use your design tokens (`#6366f1` → `var(--color-brand-primary)`)
+2. ♿ Accessibility violations against RGAA 4.1 / WCAG (missing `alt`, inputs without labels, keyboard traps…)
+3. 📊 A 0–100 compliance score you can use to block your CI pipeline when quality drops
+
+> **Open-core model**: the local audit is 100% free and open source. Cloud features (dashboard, remote sync, history) are Pro.
 
 ---
 
-## Essai en 10 secondes (zéro configuration)
+## Try it in 10 seconds (zero config)
 
-Dans n'importe quel projet web — **aucun fichier de config requis** :
+In any web project — **no config file needed**:
 
 ```bash
 npx @axaraaudit/cli audit
 ```
 
-AxaraAudit détecte automatiquement ton design system depuis les custom
-properties CSS existantes (`:root { --color-primary: ... }`) et audite tout le
-projet : dérives de tokens + accessibilité RGAA, avec un score sur 100.
+AxaraAudit automatically detects your design system from existing CSS custom
+properties (`:root { --color-primary: ... }`) and audits the whole project:
+token drift + RGAA accessibility, with a score out of 100.
 
 ```
-✓ Zéro-config : 45 tokens extraits de 1 fichier(s) CSS.
+✓ Zero-config: 45 tokens extracted from 1 CSS file.
 
-  AXARA AUDIT — mon-projet
-  18 fichier(s) analysé(s)
+  AXARA AUDIT — my-project
+  18 file(s) analyzed
   ...
   SCORE  96/100
 ```
 
-> Un fichier `design-tokens.dtcg.json` (ou `.auditorrc.json`) reste la source
-> de vérité recommandée dès que tu veux affiner — il prend le dessus s'il existe.
+> A `design-tokens.dtcg.json` file (or `.auditorrc.json`) remains the recommended
+> source of truth once you want to fine-tune things — it takes priority if present.
 
-## Installation
+---
 
-Une seule commande, dans le dossier de ton projet :
+## What can you actually do with it? A quick tour
+
+### 1. Catch design tokens drifting out of sync
+
+Your team defined design tokens (`--color-brand-primary: #6366f1`), but someone
+hard-coded the hex value directly in a component instead of using the variable.
+Now if the brand color changes, that one component silently stays wrong.
+
+```bash
+npx axaraaudit audit
+```
+
+```
+components/Header.tsx
+  L12  background-color  #6366f1 → var(--color-brand-primary)  [auto-fix]
+  L12  padding           16px → var(--space-4)                  [auto-fix]
+```
+
+### 2. Catch accessibility violations (RGAA / WCAG)
+
+```
+RGAA 4.1
+  ✖ 1.1  Image without a text alternative   (critical)
+  ✖ 11.1 Input without an associated label  (serious)
+```
+
+Concretely:
+- `<img src="hero.png" />` with no `alt` → a blind user's screen reader has nothing to announce.
+- `<input type="email" />` with no `<label>` → a keyboard/screen-reader user doesn't know what the field is for.
+
+### 3. Get a single compliance score (0–100)
+
+```
+SCORE  76/100
+```
+
+Use it to gate your CI: if the score drops below your threshold, the pipeline fails.
+
+```bash
+npx axaraaudit audit --ci --fail-under 90
+# score < 90 → exit code 1, the merge is blocked
+```
+
+### 4. Auto-fix the drift — three levels of confidence
+
+```bash
+# Preview only, changes nothing
+npx axaraaudit fix
+
+# Apply the fixes to your files
+npx axaraaudit fix --write
+```
+
+**Before:**
+```css
+background-color: #6366f1;
+padding: 16px 32px;
+```
+
+**After:**
+```css
+background-color: var(--color-brand-primary);
+padding: var(--space-4) var(--space-8);
+```
+
+| Level | Fixes | Guarantee |
+|---|---|---|
+| `fix` | Values that exactly match a token | 100% safe, checked value-by-value |
+| `fix --all` | + values *close* to a token | Adjustable confidence threshold (`--min-confidence`) |
+| `fix --ai` | + RGAA issues (alt, labels, headings…) + values with no matching token | AI-generated proposals from Claude, before/after diff |
+
+> ⚠️ RGAA violations (missing `alt`, missing `label`…) are **never** auto-fixed by the
+> mechanical modes — they require a human design decision (unless you opt into `--ai`).
+
+### 5. Let Claude write the actual accessibility fixes (`fix --ai`, opt-in)
+
+```bash
+npx axaraaudit fix --ai --write
+```
+
+**Before:**
+```html
+<img src="hero.png" />
+<input type="email" />
+```
+
+**After (proposed by Claude):**
+```html
+<img src="hero.png" alt="Illustration of a rocket launching" />
+<input type="email" aria-labelledby="email-label" />
+<label id="email-label">Your email address</label>
+```
+
+Nothing is sent to the API unless you pass `--ai`. Set up once:
+
+```bash
+npx axaraaudit login --anthropic-key sk-ant-...
+# or set ANTHROPIC_API_KEY as an env var (ideal for CI)
+```
+
+```bash
+npx axaraaudit fix --ai                            # preview: before/after diff per file
+npx axaraaudit fix --ai --write                    # apply the proposed fixes
+npx axaraaudit fix --ai --model claude-sonnet-5    # cheaper model
+```
+
+Every run prints the number of API tokens consumed. Default model: `claude-opus-4-8`.
+
+### 6. Hear your site the way a screen-reader user does
+
+```bash
+npx axaraaudit voice src/Header.tsx
+```
+
+```
+components/Header.tsx
+  🔊 region: navigation — Main navigation
+  🔊 link: Home
+  🔊 link
+     ⚠ RGAA 6.1 — link with no accessible name — the user only hears "link"
+  🔊 image
+     ⚠ RGAA 1.1 — image without a text alternative
+
+5 degraded announcement(s) out of 14 — invisible to the eye, glaring to the ear.
+```
+
+No config, no browser required.
+
+### 7. Track your score across commits
+
+```bash
+npx axaraaudit history --limit 20
+```
+
+```
+2026-06-12  a1b2c3d  62   feat: landing page
+2026-06-19  e4f5a6b  71   fix: tokenize buttons
+2026-07-03  c7d8e9f  96   chore: axaraaudit fix --all
+
+SCORE  62 ▁▃▅▆▇█ 96   (+34 🎉)
+```
+
+Replays the audit against past commits without checking anything out.
+
+### 8. Find out who introduced the drift
+
+```bash
+npx axaraaudit blame
+```
+
+```
+🥇 Bob Dupont — 7 drift(s)
+   ≈ src/app.css:L13  padding: 80px (e534a7e, 2026-06-12)
+```
+
+No hard feelings — `axaraaudit fix --all --write` wipes the slate clean.
+
+### 9. Get your results roasted (with a fix plan)
+
+```bash
+npx axaraaudit roast
+```
+
+Claude comments on your audit results with sharp-but-friendly humor, then gives
+you a 3-step "redemption plan." Great for sharing with the team without sounding
+preachy (requires an Anthropic key, same as `fix --ai`).
+
+---
+
+## Installation (once you're past the `npx` trial)
 
 ```bash
 npm install -D @axaraaudit/cli
 ```
 
-> 💡 **npm, pnpm, npx — c'est quoi la différence ?**
-> - `npm install` **installe** le package dans ton projet (une seule fois)
-> - `npx axaraaudit ...` **exécute** la commande installée (à chaque usage)
-> - Si ton projet utilise **pnpm**, remplace simplement : `pnpm add -D @axaraaudit/cli` puis `pnpm exec axaraaudit ...` — le comportement est identique.
+> 💡 **npm vs npx vs pnpm — what's the difference?**
+> - `npm install` **installs** the package in your project (once)
+> - `npx axaraaudit ...` **runs** the installed command (every time you use it)
+> - Using **pnpm**? Same idea: `pnpm add -D @axaraaudit/cli` then `pnpm exec axaraaudit ...`
 >
-> Toutes les commandes ci-dessous utilisent `npx`, qui fonctionne dans tous les cas.
+> All commands below use `npx`, which works either way.
 
 ---
 
-## Démarrage rapide
+## Getting started with a config file
 
-### 1. Initialiser la configuration
+### 1. Initialize
 
 ```bash
 npx axaraaudit init
 ```
 
-Crée un fichier `.auditorrc.json` à la racine du projet :
+Creates `.auditorrc.json` at your project root:
 
 ```json
 {
-  "project": "mon-app",
+  "project": "my-app",
   "tokens": "./design-tokens.dtcg.json",
   "include": ["src", "components", "styles"],
   "exclude": ["node_modules", "dist", ".next"],
@@ -79,234 +249,55 @@ Crée un fichier `.auditorrc.json` à la racine du projet :
 }
 ```
 
-### 2. Lancer l'audit
+### 2. Run the audit
 
 ```bash
 npx axaraaudit audit
-```
 
-```
-  AXARA AUDIT — mon-app
-  5 fichier(s) analysé(s)
-────────────────────────────────────────────────────────────────
-  DESIGN SYSTEM
-  components/Header.tsx
-    L12  background-color  #6366f1 → var(--color-brand-primary)  [auto-fix]
-    L12  padding           16px → var(--space-4)                  [auto-fix]
-────────────────────────────────────────────────────────────────
-  RGAA 4.1
-    ✖ 1.1  Image sans alternative textuelle  (critical)
-    ✖ 11.1 Input sans label associé          (serious)
-────────────────────────────────────────────────────────────────
-  SCORE  76/100
-```
-
-### 3. Corriger automatiquement les dérives design
-
-Les couleurs et espacements qui correspondent exactement à un token peuvent être corrigés automatiquement.
-
-```bash
-# Prévisualisation (ne modifie rien)
-npx axaraaudit fix
-
-# Appliquer les corrections
-npx axaraaudit fix --write
-```
-
-Avant :
-```css
-background-color: #6366f1;
-padding: 16px 32px;
-```
-
-Après :
-```css
-background-color: var(--color-brand-primary);
-padding: var(--space-4) var(--space-8);
-```
-
-> ⚠️ Les violations RGAA (alt manquant, label absent…) ne sont **pas** auto-corrigées : elles demandent un choix de conception humain.
-
----
-
-## Toutes les commandes
-
-### `axaraaudit audit` — Analyse complète
-
-```bash
-# Rapport terminal (défaut)
-npx axaraaudit audit
-
-# Exporter le rapport en JSON
+# JSON output instead of the terminal report
 npx axaraaudit audit --format json
-npx axaraaudit audit --out rapport.json
+npx axaraaudit audit --out report.json
 
-# Analyser seulement les dérives design (sans RGAA)
+# Design drift only, skip RGAA
 npx axaraaudit audit --skip-rgaa
 
-# Mode CI : bloque avec exit code 1 si score < seuil
-npx axaraaudit audit --ci
-
-# Définir un seuil de score personnalisé
+# CI mode: exit code 1 if the score is below threshold
 npx axaraaudit audit --ci --fail-under 90
 
-# Utiliser un fichier de config ou tokens différent
+# Use a different config or tokens file
 npx axaraaudit audit --config ./config/audit.json
 npx axaraaudit audit --tokens ./tokens/brand.dtcg.json
 ```
 
-### `axaraaudit fix` — Correction automatique
+### 3. Fix what can be fixed
 
 ```bash
-# Prévisualisation (ne modifie rien)
-npx axaraaudit fix
-
-# Appliquer les corrections aux fichiers
-npx axaraaudit fix --write
-
-# Inclure les valeurs "proches" d'un token (confiance ≥ 0.7)
-npx axaraaudit fix --all --write
-
-# 🤖 Tout corriger, y compris le RGAA, via Claude (opt-in)
-npx axaraaudit fix --ai --write
+npx axaraaudit fix               # preview
+npx axaraaudit fix --write       # apply
+npx axaraaudit fix --all --write # include near-matches (confidence ≥ 0.7)
+npx axaraaudit fix --ai --write  # + AI fixes for RGAA and unmatched values
 ```
 
-Trois niveaux de correction :
-
-| Niveau | Corrige | Garantie |
-|---|---|---|
-| `fix` | Valeurs = token exact | 100% sûr, vérifié position par position |
-| `fix --all` | + valeurs proches d'un token | Seuil de confiance réglable (`--min-confidence`) |
-| `fix --ai` | + RGAA (alt, labels, titres…) + valeurs sans token | Propositions de Claude, diff avant/après |
-
-### 🤖 Correction IA (`fix --ai`)
-
-Le mode IA envoie les fichiers concernés à l'API Anthropic (Claude) pour corriger
-ce que la mécanique ne peut pas : attributs `alt` manquants, labels de formulaire,
-hiérarchie de titres, liens vides, valeurs sans token proche. **Opt-in explicite** —
-rien n'est envoyé sans le flag `--ai`.
-
-Configuration (une seule fois) :
+### 4. Pro authentication (optional)
 
 ```bash
-# 1. Créer une clé API sur https://console.anthropic.com/settings/keys
-# 2. L'enregistrer :
-npx axaraaudit login --anthropic-key sk-ant-...
-#    (ou variable d'environnement ANTHROPIC_API_KEY, idéal en CI)
-```
-
-Utilisation :
-
-```bash
-npx axaraaudit fix --ai            # prévisualisation : diff avant/après par fichier
-npx axaraaudit fix --ai --write    # applique les corrections proposées
-npx axaraaudit fix --ai --model claude-sonnet-5   # modèle plus économique
-```
-
-Chaque exécution affiche le nombre de tokens API consommés. Le modèle par défaut
-est `claude-opus-4-8`.
-
-### 🎧 `axaraaudit voice` — Écoutez votre site comme un aveugle l'entend
-
-Simule un lecteur d'écran et affiche ce que vos utilisateurs entendent
-réellement — chaque annonce dégradée est signalée avec son critère RGAA :
-
-```bash
-npx axaraaudit voice                       # tous les composants
-npx axaraaudit voice src/Header.tsx        # un fichier précis
-```
-
-```
-  components/Header.tsx
-    🔊 région : navigation — Navigation principale
-    🔊 lien : Accueil
-    🔊 lien
-       ⚠ RGAA 6.1 — lien sans intitulé — l'utilisateur entend seulement « lien »
-    🔊 image
-       ⚠ RGAA 1.1 — image sans alternative textuelle
-
-  5 annonce(s) dégradée(s) sur 14 — invisible à l'œil, criant à l'oreille.
-```
-
-Aucune configuration, aucun navigateur requis.
-
-### 📈 `axaraaudit history` — La machine à remonter la dette
-
-Rejoue l'audit design sur les derniers commits (sans rien checkouter) et trace
-l'évolution du score :
-
-```bash
-npx axaraaudit history --limit 20
-```
-
-```
-  2026-06-12  a1b2c3d  62   feat: landing page
-  2026-06-19  e4f5a6b  71   fix: tokenize buttons
-  2026-07-03  c7d8e9f  96   chore: axaraaudit fix --all
-
-  SCORE  62 ▁▃▅▆▇█ 96   (+34 🎉)
-```
-
-### 🕵️ `axaraaudit blame` — Qui a introduit les dérives ?
-
-```bash
-npx axaraaudit blame
-```
-
-```
-  🥇 Bob Dupont — 7 dérive(s)
-     ≈ src/app.css:L13  padding: 80px (e534a7e, 2026-06-12)
-```
-
-Sans rancune — `axaraaudit fix --all --write` efface l'ardoise.
-
-### 😈 `axaraaudit roast` — L'audit par un humoriste
-
-L'IA commente vos résultats d'audit avec un humour cinglant mais bienveillant,
-puis vous donne le « plan de rachat » en 3 actions. Parfait pour partager en
-équipe (nécessite une clé Anthropic, comme `fix --ai`) :
-
-```bash
-npx axaraaudit roast
-```
-
-### `axaraaudit init` — Initialisation
-
-```bash
-# Créer .auditorrc.json
-npx axaraaudit init
-
-# Écraser un fichier existant
-npx axaraaudit init --force
-```
-
-### `axaraaudit login` — Authentification Pro
-
-```bash
-# Enregistrer un jeton Pro
-npx axaraaudit login --token <ton-jeton>
-
-# Vérifier l'identité
+npx axaraaudit login --token <your-token>
 npx axaraaudit whoami
-
-# Se déconnecter
 npx axaraaudit logout
 ```
 
-En CI, utilise plutôt la variable d'environnement (jamais écrite sur disque) :
+In CI, prefer the environment variable (never written to disk):
 
 ```bash
-AUDITOR_TOKEN=<ton-jeton> npx axaraaudit audit --ci --upload
+AUDITOR_TOKEN=<your-token> npx axaraaudit audit --ci --upload
 ```
 
 ---
 
-## Intégration CI/CD
-
-### GitHub Actions
+## CI/CD integration
 
 ```yaml
-name: Audit accessibilité & design system
+name: Accessibility & design system audit
 on: [push, pull_request]
 
 jobs:
@@ -318,7 +309,7 @@ jobs:
       - run: pnpm install
       - run: npx axaraaudit audit --ci --out audit-report.json
         env:
-          AUDITOR_TOKEN: ${{ secrets.AUDITOR_TOKEN }}   # optionnel (Pro)
+          AUDITOR_TOKEN: ${{ secrets.AUDITOR_TOKEN }}   # optional (Pro)
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -326,64 +317,64 @@ jobs:
           path: audit-report.json
 ```
 
-### Codes de sortie
+**Exit codes:**
 
-| Code | Signification |
+| Code | Meaning |
 |---|---|
-| `0` | Audit OK (ou mode non-CI) |
-| `1` | Gate CI échoué (score < seuil ou critère bloquant) |
-| `2` | Erreur de configuration |
+| `0` | Audit passed (or non-CI mode) |
+| `1` | CI gate failed (score below threshold or blocking criterion) |
+| `2` | Configuration error |
 
 ---
 
-## Le fichier `.auditorrc.json` en détail
+## `.auditorrc.json` reference
 
 ```jsonc
 {
-  // Nom du projet (affiché dans le rapport)
-  "project": "mon-app",
+  // Project name (shown in the report)
+  "project": "my-app",
 
-  // Fichier de tokens au format DTCG (source de vérité design)
+  // Tokens file in DTCG format (source of truth for design)
   "tokens": "./design-tokens.dtcg.json",
 
-  // Dossiers/fichiers à analyser
+  // Folders/files to analyze
   "include": ["src", "components", "styles"],
   "exclude": ["node_modules", "dist", "build", ".next"],
   "extensions": [".css", ".scss", ".tsx", ".jsx", ".html"],
 
-  // Base rem → px pour normaliser les espacements
+  // rem → px base for normalizing spacing
   "remBasePx": 16,
 
   "rgaa": {
     "enabled": true,
-    // "component" ignore les règles de page (h1, landmarks) pour les composants isolés
-    // "page" pour auditer une page HTML complète
+    // "component" ignores page-level rules (h1, landmarks) for isolated components
+    // "page" for auditing a full HTML page
     "scope": "component",
-    // Critères RGAA qui bloquent le CI quel que soit l'impact
+    // RGAA criteria that block CI regardless of impact level
     "priority": ["1.1", "3.2", "11.1"]
   },
 
   "ci": {
-    // Score minimal 0–100 pour passer le gate
+    // Minimum 0–100 score required to pass the gate
     "failUnder": 80,
-    // Bloquer sur toute violation critical ou serious
+    // Block on any critical or serious violation
     "blockOnCritical": true
   },
 
-  // Fonctionnalités Pro
+  // Pro features
   "pro": {
     "apiUrl": "https://api.axara.dev",
-    "upload": false,       // envoyer chaque rapport au dashboard
-    "remoteConfig": false  // récupérer règles/tokens depuis l'API
+    "upload": false,       // send every report to the dashboard
+    "remoteConfig": false  // fetch rules/tokens from the API
   }
 }
 ```
 
 ---
 
-## Format des tokens (`design-tokens.dtcg.json`)
+## Token format (`design-tokens.dtcg.json`)
 
-Format standard [DTCG](https://design-tokens.github.io/community-group/format/) :
+Standard [DTCG](https://design-tokens.github.io/community-group/format/) format:
 
 ```json
 {
@@ -406,51 +397,51 @@ Format standard [DTCG](https://design-tokens.github.io/community-group/format/) 
 }
 ```
 
-Les tokens génèrent automatiquement des variables CSS en kebab-case :
+Tokens automatically generate kebab-case CSS variables:
 - `color.brand.primary` → `var(--color-brand-primary)`
 - `space.8` → `var(--space-8)`
 
 ---
 
-## Packages du monorepo
+## Monorepo packages
 
-| Package | Rôle |
+| Package | Role |
 |---|---|
-| [`@axaraaudit/core`](packages/core/README.md) | Moteur : parsing DTCG, analyse AST, RGAA/axe-core, auto-fix |
-| [`@axaraaudit/cli`](packages/cli/README.md) | CLI `axaraaudit` (ce que tu utilises au quotidien) |
-| [`@axaraaudit/runtime`](packages/runtime/README.md) | Playwright : détection pièges clavier + sync Figma Variables |
-| [`@axaraaudit/mcp-server`](packages/mcp-server/README.md) | Serveur MCP pour intégration dans Claude/LLM |
+| [`@axaraaudit/core`](packages/core/README.md) | Engine: DTCG parsing, AST analysis, RGAA/axe-core, auto-fix |
+| [`@axaraaudit/cli`](packages/cli/README.md) | The `axaraaudit` CLI (what you use day to day) |
+| [`@axaraaudit/runtime`](packages/runtime/README.md) | Playwright: keyboard trap detection + Figma Variables sync |
+| [`@axaraaudit/mcp-server`](packages/mcp-server/README.md) | MCP server for Claude/LLM integration |
 
 ---
 
-## Développement
+## Development
 
 ```bash
-# Cloner et installer
+# Clone and install
 git clone https://github.com/polo9908/axara.git
 cd axara
 pnpm install
 
-# Build de tous les packages
+# Build all packages
 pnpm -r build
 
-# Lancer les tests (118 tests)
+# Run tests (118 tests)
 pnpm -r test
 
-# Typecheck strict
+# Strict typecheck
 pnpm -r typecheck
 
-# Tester la CLI directement depuis les sources
+# Run the CLI directly from source
 node packages/cli/dist/index.js audit
 ```
 
 ---
 
-## Prérequis
+## Requirements
 
 - Node.js ≥ 20
 - pnpm 10
 
-## Licence
+## License
 
 MIT
