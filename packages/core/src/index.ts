@@ -39,6 +39,13 @@ export {
   type DimensionMatch,
 } from './tokens/dtcg.js';
 
+// Screen-reader simulation (voice)
+export {
+  simulateScreenReader,
+  type VoiceAnnouncement,
+  type VoiceWarning,
+} from './voice/voice.js';
+
 // Zero-config token extraction from CSS custom properties
 export {
   extractCssVarTokens,

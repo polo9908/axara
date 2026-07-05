@@ -24,6 +24,7 @@ import { fetchRemoteConfig, uploadReport, ApiError } from '../services/api.js';
 import { collectFiles } from '../scan/walk.js';
 import { computeScore, evaluateGate, type FileRgaaFinding } from '../report/score.js';
 import { buildPayload } from '../report/payload.js';
+import { renderHtml } from '../report/html.js';
 import { renderPretty, dim, green, yellow } from '../report/render.js';
 
 const JSX_EXT = new Set(['.tsx', '.jsx']);
@@ -32,7 +33,7 @@ const HTML_EXT = new Set(['.html', '.htm']);
 export interface AuditFlags {
   readonly config?: string;
   readonly tokens?: string;
-  readonly format: 'pretty' | 'json';
+  readonly format: 'pretty' | 'json' | 'html';
   readonly out?: string;
   readonly ci: boolean;
   readonly remote: boolean;
@@ -58,7 +59,8 @@ export function parseAuditFlags(argv: readonly string[]): AuditFlags {
     allowPositionals: true,
   });
 
-  const format = values.format === 'json' ? 'json' : 'pretty';
+  const format =
+    values.format === 'json' ? 'json' : values.format === 'html' ? 'html' : 'pretty';
   const failUnderRaw = values['fail-under'];
   const failUnder = failUnderRaw === undefined ? undefined : Number(failUnderRaw);
   if (failUnder !== undefined && (Number.isNaN(failUnder) || failUnder < 0 || failUnder > 100)) {
@@ -179,14 +181,22 @@ export async function runAudit(argv: readonly string[]): Promise<number> {
   });
 
   const json = JSON.stringify(payload, null, 2);
-  if (flags.out !== undefined) {
-    writeFileSync(flags.out, `${json}\n`, 'utf8');
-    log(dim(`Rapport JSON écrit : ${flags.out}`));
-  }
-  if (flags.format === 'json') {
-    process.stdout.write(`${json}\n`);
-  } else {
+  if (flags.format === 'html') {
+    const outPath = flags.out ?? 'axara-report.html';
+    writeFileSync(outPath, renderHtml(payload), 'utf8');
     process.stdout.write(renderPretty(payload, loaded.rootDir));
+    log(green(`✓ Rapport HTML écrit : ${outPath}`));
+    log(dim('  Ouvrez-le dans un navigateur — fichier autonome, partageable tel quel.'));
+  } else {
+    if (flags.out !== undefined) {
+      writeFileSync(flags.out, `${json}\n`, 'utf8');
+      log(dim(`Rapport JSON écrit : ${flags.out}`));
+    }
+    if (flags.format === 'json') {
+      process.stdout.write(`${json}\n`);
+    } else {
+      process.stdout.write(renderPretty(payload, loaded.rootDir));
+    }
   }
 
   // ── Pro: upload (explicit --upload or rc.pro.upload) ──

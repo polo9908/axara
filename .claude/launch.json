@@ -1,0 +1,18 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "report-preview",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": [
+        "-y",
+        "http-server",
+        "C:\\Users\\pauls\\AppData\\Local\\Temp\\claude\\C--Users-pauls-Desktop-AUDIT\\ccc56bbb-1fb7-47e7-a649-63cacd367277\\scratchpad\\report",
+        "-p",
+        "8437",
+        "-c-1"
+      ],
+      "port": 8437
+    }
+  ]
+}

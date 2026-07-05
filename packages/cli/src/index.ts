@@ -11,6 +11,9 @@ import { ConfigError } from './config/rc.js';
 import { ApiError } from './services/api.js';
 import { runAudit } from './commands/audit.js';
 import { runFix } from './commands/fix.js';
+import { runVoice } from './commands/voice.js';
+import { runBlame, runHistory } from './commands/history.js';
+import { runRoast } from './commands/roast.js';
 import { runInit } from './commands/init.js';
 import { runLogin, runLogout, runWhoami } from './commands/login.js';
 import { CLI_NAME, CLI_VERSION } from './version.js';
@@ -28,6 +31,13 @@ COMMANDES (open source)
                  (--min-confidence <0..1>, défaut 0.7)
                  --ai délègue le reste (RGAA, valeurs sans token) à Claude
                  (--model pour changer de modèle, défaut claude-opus-4-8)
+  voice          🎧 Simule un lecteur d'écran : entendez votre site
+                 comme vos utilisateurs aveugles (voice [fichier...])
+  history        📈 Rejoue l'audit sur les derniers commits et trace
+                 l'évolution du score (--limit <n>, défaut 15)
+  blame          🕵️ Attribue chaque dérive à son auteur (git blame)
+  roast          😈 L'audit commenté par un humoriste (clé IA requise,
+                 cinglant mais bienveillant)
   init           Génère un .auditorrc.json de démarrage
 
 COMMANDES (passerelle Pro & IA)
@@ -39,8 +49,9 @@ COMMANDES (passerelle Pro & IA)
 OPTIONS D'AUDIT
   --config <chemin>     Fichier .auditorrc.json explicite
   --tokens <chemin>     Fichier de tokens DTCG (bypass de la config)
-  --format pretty|json  Format de sortie (défaut : pretty)
-  --out <fichier>       Écrit aussi le rapport JSON dans un fichier
+  --format pretty|json|html  Format de sortie (défaut : pretty)
+                             html : rapport autonome, partageable (axara-report.html)
+  --out <fichier>       Fichier de sortie (JSON ou HTML selon --format)
   --ci                  Mode gatekeeper : exit 1 si le gate échoue
   --fail-under <n>      Seuil de score local (défaut : config ou 80)
   --skip-rgaa           Ne lance que l'analyse de dérive design
@@ -79,6 +90,14 @@ async function main(): Promise<number> {
       return runAudit(rest);
     case 'fix':
       return runFix(rest);
+    case 'voice':
+      return runVoice(rest);
+    case 'history':
+      return runHistory(rest);
+    case 'blame':
+      return runBlame(rest);
+    case 'roast':
+      return runRoast(rest);
     case 'init':
       return runInit(rest);
     case 'login':

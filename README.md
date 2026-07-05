@@ -206,6 +206,70 @@ npx axaraaudit fix --ai --model claude-sonnet-5   # modèle plus économique
 Chaque exécution affiche le nombre de tokens API consommés. Le modèle par défaut
 est `claude-opus-4-8`.
 
+### 🎧 `axaraaudit voice` — Écoutez votre site comme un aveugle l'entend
+
+Simule un lecteur d'écran et affiche ce que vos utilisateurs entendent
+réellement — chaque annonce dégradée est signalée avec son critère RGAA :
+
+```bash
+npx axaraaudit voice                       # tous les composants
+npx axaraaudit voice src/Header.tsx        # un fichier précis
+```
+
+```
+  components/Header.tsx
+    🔊 région : navigation — Navigation principale
+    🔊 lien : Accueil
+    🔊 lien
+       ⚠ RGAA 6.1 — lien sans intitulé — l'utilisateur entend seulement « lien »
+    🔊 image
+       ⚠ RGAA 1.1 — image sans alternative textuelle
+
+  5 annonce(s) dégradée(s) sur 14 — invisible à l'œil, criant à l'oreille.
+```
+
+Aucune configuration, aucun navigateur requis.
+
+### 📈 `axaraaudit history` — La machine à remonter la dette
+
+Rejoue l'audit design sur les derniers commits (sans rien checkouter) et trace
+l'évolution du score :
+
+```bash
+npx axaraaudit history --limit 20
+```
+
+```
+  2026-06-12  a1b2c3d  62   feat: landing page
+  2026-06-19  e4f5a6b  71   fix: tokenize buttons
+  2026-07-03  c7d8e9f  96   chore: axaraaudit fix --all
+
+  SCORE  62 ▁▃▅▆▇█ 96   (+34 🎉)
+```
+
+### 🕵️ `axaraaudit blame` — Qui a introduit les dérives ?
+
+```bash
+npx axaraaudit blame
+```
+
+```
+  🥇 Bob Dupont — 7 dérive(s)
+     ≈ src/app.css:L13  padding: 80px (e534a7e, 2026-06-12)
+```
+
+Sans rancune — `axaraaudit fix --all --write` efface l'ardoise.
+
+### 😈 `axaraaudit roast` — L'audit par un humoriste
+
+L'IA commente vos résultats d'audit avec un humour cinglant mais bienveillant,
+puis vous donne le « plan de rachat » en 3 actions. Parfait pour partager en
+équipe (nécessite une clé Anthropic, comme `fix --ai`) :
+
+```bash
+npx axaraaudit roast
+```
+
 ### `axaraaudit init` — Initialisation
 
 ```bash

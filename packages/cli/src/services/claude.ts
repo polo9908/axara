@@ -83,18 +83,25 @@ interface MessagesResponse {
   readonly error?: { readonly type?: string; readonly message?: string };
 }
 
-export interface RequestFileFixOptions {
+export interface RequestTextOptions {
+  readonly system: string;
+  readonly user: string;
   readonly model?: string;
+  readonly maxTokens?: number;
   /** Injectable for tests. */
   readonly fetchImpl?: typeof fetch;
 }
 
-/** Ask Claude for a corrected version of one file. */
-export async function requestFileFix(
-  apiKey: string,
-  request: AiFixRequest,
-  options: RequestFileFixOptions = {},
-): Promise<AiFixResult> {
+export interface TextResult {
+  readonly text: string;
+  readonly stopReason: string;
+  readonly inputTokens: number;
+  readonly outputTokens: number;
+  readonly model: string;
+}
+
+/** Low-level Messages API call returning the concatenated text blocks. */
+export async function requestText(apiKey: string, options: RequestTextOptions): Promise<TextResult> {
   const doFetch = options.fetchImpl ?? fetch;
   const model = options.model ?? CLAUDE_MODEL;
 
@@ -110,10 +117,10 @@ export async function requestFileFix(
       },
       body: JSON.stringify({
         model,
-        max_tokens: 16000,
+        max_tokens: options.maxTokens ?? 16000,
         thinking: { type: 'adaptive' },
-        system: SYSTEM_PROMPT,
-        messages: [{ role: 'user', content: buildUserPrompt(request) }],
+        system: options.system,
+        messages: [{ role: 'user', content: options.user }],
       }),
       signal: AbortSignal.timeout(120_000),
     });
@@ -142,27 +149,56 @@ export async function requestFileFix(
   }
 
   if (data.stop_reason === 'refusal') {
-    throw new ClaudeError(`Le modèle a refusé la requête pour ${request.file}.`);
-  }
-  if (data.stop_reason === 'max_tokens') {
-    throw new ClaudeError(
-      `Réponse tronquée pour ${request.file} (fichier trop volumineux pour une correction IA).`,
-    );
+    throw new ClaudeError('Le modèle a refusé la requête.');
   }
 
   const text = (data.content ?? [])
     .filter((block) => block.type === 'text' && typeof block.text === 'string')
     .map((block) => block.text as string)
     .join('');
-  const content = extractCodeBlock(text);
+
+  return {
+    text,
+    stopReason: data.stop_reason ?? 'end_turn',
+    inputTokens: data.usage?.input_tokens ?? 0,
+    outputTokens: data.usage?.output_tokens ?? 0,
+    model: data.model ?? model,
+  };
+}
+
+export interface RequestFileFixOptions {
+  readonly model?: string;
+  /** Injectable for tests. */
+  readonly fetchImpl?: typeof fetch;
+}
+
+/** Ask Claude for a corrected version of one file. */
+export async function requestFileFix(
+  apiKey: string,
+  request: AiFixRequest,
+  options: RequestFileFixOptions = {},
+): Promise<AiFixResult> {
+  const result = await requestText(apiKey, {
+    system: SYSTEM_PROMPT,
+    user: buildUserPrompt(request),
+    ...(options.model !== undefined ? { model: options.model } : {}),
+    ...(options.fetchImpl !== undefined ? { fetchImpl: options.fetchImpl } : {}),
+  });
+
+  if (result.stopReason === 'max_tokens') {
+    throw new ClaudeError(
+      `Réponse tronquée pour ${request.file} (fichier trop volumineux pour une correction IA).`,
+    );
+  }
+  const content = extractCodeBlock(result.text);
   if (content === null) {
     throw new ClaudeError(`Réponse inexploitable du modèle pour ${request.file} (aucun bloc de code).`);
   }
 
   return {
     content,
-    inputTokens: data.usage?.input_tokens ?? 0,
-    outputTokens: data.usage?.output_tokens ?? 0,
-    model: data.model ?? model,
+    inputTokens: result.inputTokens,
+    outputTokens: result.outputTokens,
+    model: result.model,
   };
 }
