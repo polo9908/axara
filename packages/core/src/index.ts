@@ -115,11 +115,15 @@ export {
 export {
   auditProject,
   fixProject,
+  checkFiles,
   type ResolvedTokensSource,
   type ProjectAuditOptions,
   type ProjectAuditResult,
   type ProjectFixOptions,
   type ProjectFixResult,
+  type ProjectCheckOptions,
+  type ProjectCheckResult,
+  type FileCheckResult,
 } from './project/run.js';
 
 // Auto-fix (safe, position-based remediation)

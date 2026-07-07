@@ -2,7 +2,7 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'nod
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { auditProject, fixProject } from './run.js';
+import { auditProject, checkFiles, fixProject } from './run.js';
 
 let dir: string;
 
@@ -76,6 +76,56 @@ describe('auditProject', () => {
     expect(result.tokensSource.origin).toBe('inline');
     // #3b82f6 no longer matches any token → still an issue, but not auto-fixable.
     expect(result.drift.summary.autoFixable).toBe(0);
+  });
+});
+
+describe('checkFiles', () => {
+  it('validates only the requested files (drift + RGAA)', async () => {
+    const result = await checkFiles({ cwd: dir, files: ['src/App.tsx'] });
+    expect(result.summary.filesChecked).toBe(1);
+    expect(result.conformant).toBe(false);
+    const tsx = result.files[0]!;
+    expect(tsx.rgaa.some((f) => f.criterion === '1.1')).toBe(true);
+    expect(tsx.drift).toHaveLength(0); // the drift lives in app.css, not checked here
+  });
+
+  it('reports drift with the same analyzer as the full audit', async () => {
+    const result = await checkFiles({ cwd: dir, files: ['src/app.css'], skipRgaa: true });
+    expect(result.files[0]!.drift.length).toBeGreaterThan(0);
+    expect(result.files[0]!.drift.every((issue) => issue.autoFixable)).toBe(true);
+  });
+
+  it('skips missing files and non-analyzable extensions without failing', async () => {
+    const result = await checkFiles({
+      cwd: dir,
+      files: ['nope.tsx', 'design-tokens.dtcg.json'],
+    });
+    expect(result.summary.filesSkipped).toBe(2);
+    expect(result.summary.filesChecked).toBe(0);
+    expect(result.conformant).toBe(true);
+  });
+
+  it('still checks RGAA in a project without any design system', async () => {
+    const bare = mkdtempSync(join(tmpdir(), 'axaraaudit-bare-'));
+    try {
+      writeFileSync(join(bare, 'App.tsx'), 'export const A = () => <img src="a.png" />;\n');
+      const result = await checkFiles({ cwd: bare, files: ['App.tsx'] });
+      expect(result.tokensSource.origin).toBe('none');
+      expect(result.files[0]!.drift).toHaveLength(0);
+      expect(result.files[0]!.rgaa.some((f) => f.criterion === '1.1')).toBe(true);
+      expect(result.conformant).toBe(false);
+    } finally {
+      rmSync(bare, { recursive: true, force: true });
+    }
+  });
+
+  it('is conformant on a clean file', async () => {
+    writeFileSync(
+      join(dir, 'src', 'Clean.tsx'),
+      'export const C = () => <img src="a.png" alt="Logo" />;\n',
+    );
+    const result = await checkFiles({ cwd: dir, files: ['src/Clean.tsx'] });
+    expect(result.conformant).toBe(true);
   });
 });
 

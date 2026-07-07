@@ -1,0 +1,16 @@
+{
+  "name": "axara",
+  "owner": {
+    "name": "polo9908"
+  },
+  "description": "AxaraAudit — accessibilité RGAA 4.1 et design tokens pour les agents IA : validation en temps réel du code généré, serveur MCP et CLI d'audit.",
+  "plugins": [
+    {
+      "name": "axara-audit",
+      "source": "./claude-plugin",
+      "description": "Valide chaque fichier UI écrit par Claude (RGAA + design drift) via un hook PostToolUse, avec serveur MCP et skill design system.",
+      "category": "quality",
+      "keywords": ["accessibility", "a11y", "rgaa", "wcag", "design-tokens"]
+    }
+  ]
+}

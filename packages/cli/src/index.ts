@@ -10,6 +10,7 @@
 import { ConfigError } from './config/rc.js';
 import { ApiError } from './services/api.js';
 import { runAudit } from './commands/audit.js';
+import { runCheck } from './commands/check.js';
 import { runFix } from './commands/fix.js';
 import { runVoice } from './commands/voice.js';
 import { runBlame, runHistory } from './commands/history.js';
@@ -26,6 +27,9 @@ USAGE
 
 COMMANDES (open source)
   audit          Analyse le projet (défaut) : dérives de tokens + RGAA
+  check          Valide des fichiers précis (check <fichier...>) : drift + RGAA
+                 Pensé pour l'automatisation (hooks IA, pre-commit) :
+                 --format json, exit 0 conforme / 1 violations
   fix            Applique les corrections sûres (--write pour persister)
                  --all applique aussi les suggestions proches
                  (--min-confidence <0..1>, défaut 0.7)
@@ -88,6 +92,8 @@ async function main(): Promise<number> {
   switch (command) {
     case 'audit':
       return runAudit(rest);
+    case 'check':
+      return runCheck(rest);
     case 'fix':
       return runFix(rest);
     case 'voice':

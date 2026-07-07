@@ -403,7 +403,22 @@ Tokens automatically generate kebab-case CSS variables:
 
 ---
 
-## For AI agents (MCP)
+## For AI agents (MCP & Claude Code plugin)
+
+### Claude Code plugin — accessible *by construction*
+
+```
+/plugin marketplace add polo9908/axara
+/plugin install axara-audit@axara
+```
+
+Every UI file Claude writes is validated on the spot (a `PostToolUse` hook runs
+`axaraaudit check` on the touched file); violations are fed straight back to
+the model, which fixes its own code before you even review the diff. The
+plugin also bundles the MCP server and a design-system skill.
+[Plugin docs →](claude-plugin/README.md)
+
+### MCP server
 
 AxaraAudit ships a first-class [MCP server](packages/mcp-server/README.md) so
 coding agents (Claude Code, or any MCP client) can generate UI that is
@@ -419,6 +434,16 @@ resources (`axara://design-tokens`, `axara://config`, `axara://report/latest`).
 Every tool declares an output schema and read-only/destructive annotations, and
 runs the **same core pipeline as the CLI**: an agent and your CI always see the
 same score.
+
+### `axaraaudit check` — the automation primitive
+
+```bash
+npx axaraaudit check src/Header.tsx --format json   # exit 0 conforme, 1 sinon
+```
+
+Targeted validation of specific files (drift + RGAA) without walking the whole
+project — built for hooks (Claude Code, pre-commit, lint-staged) and agent
+loops. Works even without a design system (RGAA-only).
 
 ---
 
@@ -444,7 +469,7 @@ pnpm install
 # Build all packages
 pnpm -r build
 
-# Run tests (163 tests)
+# Run tests (168 tests)
 pnpm -r test
 
 # Strict typecheck

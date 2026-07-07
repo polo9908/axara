@@ -1,0 +1,6 @@
+{
+  "axara": {
+    "command": "npx",
+    "args": ["-y", "@axaraaudit/mcp-server"]
+  }
+}

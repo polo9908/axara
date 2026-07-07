@@ -6,12 +6,14 @@
  * and the same score for a given project state.
  */
 
-import { readFileSync } from 'node:fs';
-import { extname, relative } from 'node:path';
-import { auditSources, type AuditReport, type SourceFile } from '../analyzer/audit.js';
+import { existsSync, readFileSync } from 'node:fs';
+import { extname, isAbsolute, relative, resolve } from 'node:path';
+import { analyzeSource, auditSources, type AuditReport, type SourceFile } from '../analyzer/audit.js';
 import { jsxToHtml } from '../analyzer/jsx-to-html.js';
 import { fixFile, type FixFileResult } from '../fix/apply.js';
 import { auditHtmlRgaa, PAGE_SCOPED_RULES } from '../rgaa/runner.js';
+import { parseDtcgString } from '../tokens/dtcg.js';
+import type { RgaaFinding } from '../rgaa/types.js';
 import type { DriftIssue } from '../types.js';
 import { loadRc, mergeRc, type AuditorRc, type AuditorRcInput, type LoadedRc } from './rc.js';
 import { buildAuditPayload, type AuditPayload } from './payload.js';
@@ -22,9 +24,12 @@ import { collectFiles } from './walk.js';
 const JSX_EXT = new Set(['.tsx', '.jsx']);
 const HTML_EXT = new Set(['.html', '.htm']);
 
-/** Where the audited tokens came from (adds `inline` for Pro remote tokens). */
+/**
+ * Where the audited tokens came from (adds `inline` for Pro remote tokens and
+ * `none` when `checkFiles` runs RGAA-only in a token-less project).
+ */
 export interface ResolvedTokensSource {
-  readonly origin: TokensSource['origin'] | 'inline';
+  readonly origin: TokensSource['origin'] | 'inline' | 'none';
   readonly detail: string;
 }
 
@@ -215,5 +220,134 @@ export function fixProject(options: ProjectFixOptions): ProjectFixResult {
     fixed,
     totalApplied,
     remaining,
+  };
+}
+
+export interface ProjectCheckOptions {
+  readonly cwd: string;
+  /** Files to validate (absolute, or relative to `cwd`). */
+  readonly files: readonly string[];
+  readonly configPath?: string | undefined;
+  readonly tokensPath?: string | undefined;
+  /** Skip the RGAA pass even when the config enables it. */
+  readonly skipRgaa?: boolean | undefined;
+}
+
+export interface FileCheckResult {
+  /** Path relative to `cwd`. */
+  readonly file: string;
+  /** True when the file was missing or its extension is not analyzable. */
+  readonly skipped: boolean;
+  readonly drift: readonly DriftIssue[];
+  readonly rgaa: readonly RgaaFinding[];
+}
+
+export interface ProjectCheckResult {
+  readonly loaded: LoadedRc;
+  readonly tokensSource: ResolvedTokensSource;
+  readonly files: readonly FileCheckResult[];
+  readonly summary: {
+    readonly filesChecked: number;
+    readonly filesSkipped: number;
+    readonly driftIssues: number;
+    readonly rgaaFailed: number;
+    readonly rgaaToReview: number;
+  };
+  /** No drift at all and no failed RGAA criterion (cantTell doesn't block). */
+  readonly conformant: boolean;
+}
+
+/**
+ * Validate a handful of specific files (drift + RGAA) without walking the
+ * whole project — the fast path for editor/agent hooks that fire on every
+ * write. Same config, tokens resolution and analyzers as `auditProject`; the
+ * project is only walked when the zero-config CSS token extraction is needed.
+ */
+export async function checkFiles(options: ProjectCheckOptions): Promise<ProjectCheckResult> {
+  const loaded = loadRc(options.cwd, options.configPath);
+  const rc = loaded.rc;
+
+  // Tokens: cheap path first (declared/overridden DTCG file); walk the project
+  // for the CSS custom-properties fallback only when there is no such file.
+  // A project with no design system at all is still checkable — RGAA-only.
+  let source: ResolvedTokensSource & { readonly json: string };
+  try {
+    source = loadTokensSource(loaded, options.tokensPath, []);
+  } catch {
+    try {
+      const cssPaths = collectFiles(loaded.rootDir, rc.include, rc.exclude, rc.extensions);
+      const cssFiles: SourceFile[] = cssPaths.map((path) => ({
+        path,
+        content: readFileSync(path, 'utf8'),
+      }));
+      source = loadTokensSource(loaded, options.tokensPath, cssFiles);
+    } catch (error) {
+      // An explicit tokensPath that cannot be loaded is a user error.
+      if (options.tokensPath !== undefined) throw error;
+      source = {
+        json: '{}',
+        origin: 'none',
+        detail: 'aucun design system détecté — validation RGAA uniquement',
+      };
+    }
+  }
+  const index = parseDtcgString(source.json, { remBasePx: rc.remBasePx }).index;
+
+  const analyzable = new Set(rc.extensions.map((ext) => ext.toLowerCase()));
+  const rgaaEnabled = rc.rgaa.enabled && options.skipRgaa !== true;
+
+  const results: FileCheckResult[] = [];
+  for (const entry of options.files) {
+    const abs = isAbsolute(entry) ? entry : resolve(options.cwd, entry);
+    const rel = relative(options.cwd, abs);
+    const ext = extname(abs).toLowerCase();
+    if (!existsSync(abs) || !analyzable.has(ext)) {
+      results.push({ file: rel, skipped: true, drift: [], rgaa: [] });
+      continue;
+    }
+
+    const content = readFileSync(abs, 'utf8');
+    // No design system → no meaningful drift baseline; RGAA still applies.
+    const drift = source.origin === 'none' ? [] : analyzeSource({ path: abs, content }, index);
+
+    let rgaa: readonly RgaaFinding[] = [];
+    if (rgaaEnabled) {
+      let html: string | null = null;
+      if (JSX_EXT.has(ext)) html = jsxToHtml(content);
+      else if (HTML_EXT.has(ext)) html = content;
+      if (html !== null && html.trim() !== '') {
+        const report = await auditHtmlRgaa(html, {
+          contrast: rc.rgaa.contrast,
+          ...(rc.rgaa.scope === 'component' ? { disableRules: PAGE_SCOPED_RULES } : {}),
+        });
+        rgaa = report.findings;
+      }
+    }
+
+    results.push({ file: rel, skipped: false, drift, rgaa });
+  }
+
+  const driftIssues = results.reduce((n, r) => n + r.drift.length, 0);
+  const rgaaFailed = results.reduce(
+    (n, r) => n + r.rgaa.filter((f) => f.status === 'failed').length,
+    0,
+  );
+  const rgaaToReview = results.reduce(
+    (n, r) => n + r.rgaa.filter((f) => f.status === 'cantTell').length,
+    0,
+  );
+
+  return {
+    loaded,
+    tokensSource: { origin: source.origin, detail: source.detail },
+    files: results,
+    summary: {
+      filesChecked: results.filter((r) => !r.skipped).length,
+      filesSkipped: results.filter((r) => r.skipped).length,
+      driftIssues,
+      rgaaFailed,
+      rgaaToReview,
+    },
+    conformant: driftIssues === 0 && rgaaFailed === 0,
   };
 }

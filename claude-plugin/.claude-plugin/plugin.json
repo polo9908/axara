@@ -1,0 +1,14 @@
+{
+  "name": "axara-audit",
+  "displayName": "AxaraAudit",
+  "version": "0.2.0",
+  "description": "Accessibilité RGAA 4.1 + design tokens, en temps réel pendant que l'agent code : chaque fichier UI écrit par Claude est validé automatiquement (hook PostToolUse), avec serveur MCP et skill design system inclus.",
+  "author": {
+    "name": "AxaraAudit",
+    "url": "https://github.com/polo9908/axara"
+  },
+  "homepage": "https://github.com/polo9908/axara",
+  "repository": "https://github.com/polo9908/axara",
+  "license": "MIT",
+  "keywords": ["accessibility", "a11y", "rgaa", "wcag", "design-tokens", "audit"]
+}
