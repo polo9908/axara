@@ -19,29 +19,10 @@ import { runHello } from './commands/hello.js';
 import { runInit } from './commands/init.js';
 import { runLogin, runLogout, runWhoami } from './commands/login.js';
 import { didYouMean, findCommand, renderCommandHelp, renderHelp, runHelp } from './commands/help.js';
+import { paletteAvailable, runPalette } from './ui/palette.js';
 import { CLI_VERSION } from './version.js';
 
-async function main(): Promise<number> {
-  const argv = process.argv.slice(2);
-  const first = argv[0];
-
-  if (first === '--version' || first === '-v') {
-    process.stdout.write(`${CLI_VERSION}\n`);
-    return 0;
-  }
-  if (first === undefined || first === '--help' || first === '-h') {
-    process.stdout.write(renderHelp());
-    return 0;
-  }
-  if (first === 'help') {
-    return runHelp(argv.slice(1));
-  }
-
-  // `axaraaudit --ci` (sans sous-commande) ≡ `axaraaudit audit --ci`
-  const [command, rest] = first.startsWith('-')
-    ? (['audit', argv] as const)
-    : ([first, argv.slice(1)] as const);
-
+async function dispatch(command: string, rest: readonly string[]): Promise<number> {
   // `axaraaudit <commande> --help` : aide ciblée avant que parseArgs ne
   // rejette l'option inconnue.
   if (rest.includes('--help') || rest.includes('-h')) {
@@ -86,6 +67,40 @@ async function main(): Promise<number> {
       return 2;
     }
   }
+}
+
+async function main(): Promise<number> {
+  const argv = process.argv.slice(2);
+  const first = argv[0];
+
+  if (first === '--version' || first === '-v') {
+    process.stdout.write(`${CLI_VERSION}\n`);
+    return 0;
+  }
+  // Sans argument (ou avec `/filtre`, mémoire musculaire Claude Code) :
+  // palette interactive sur TTY, aide statique sinon (pipes, CI).
+  if (first === undefined || first.startsWith('/')) {
+    if (paletteAvailable()) {
+      const pick = await runPalette(first ?? '');
+      if (pick === null) return 0;
+      return dispatch(pick, []);
+    }
+    process.stdout.write(renderHelp());
+    return 0;
+  }
+  if (first === '--help' || first === '-h') {
+    process.stdout.write(renderHelp());
+    return 0;
+  }
+  if (first === 'help') {
+    return runHelp(argv.slice(1));
+  }
+
+  // `axaraaudit --ci` (sans sous-commande) ≡ `axaraaudit audit --ci`
+  const [command, rest] = first.startsWith('-')
+    ? (['audit', argv] as const)
+    : ([first, argv.slice(1)] as const);
+  return dispatch(command, rest);
 }
 
 main()
