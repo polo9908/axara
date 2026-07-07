@@ -19,6 +19,7 @@ import { stderrLevel } from '../ui/ansi.js';
 import { renderBanner } from '../ui/banner.js';
 import { canReveal, revealScore } from '../ui/reveal.js';
 import { createSpinner } from '../ui/spinner.js';
+import { printTips, type Tip } from '../ui/tips.js';
 import { CLI_NAME, CLI_VERSION } from '../version.js';
 
 export interface AuditFlags {
@@ -184,6 +185,47 @@ export async function runAudit(argv: readonly string[]): Promise<number> {
         log(yellow(`⚠ Envoi du rapport impossible : ${reason}`));
       }
     }
+  }
+
+  // ── Tips contextuels : la prochaine étape logique, prête à copier ──
+  if (flags.format === 'pretty') {
+    const tips: Tip[] = [];
+    const driftCount = payload.drift.issues.length;
+    const rgaaFailed = payload.rgaa.findings.filter((f) => f.status === 'failed');
+    if (driftCount > 0) {
+      tips.push({
+        cmd: 'axaraaudit fix --write',
+        why: `applique les remplacements de tokens sûrs (${driftCount} dérive(s) détectée(s))`,
+      });
+    }
+    if (rgaaFailed.length > 0) {
+      tips.push({
+        cmd: 'axaraaudit fix --ai --write',
+        why: 'corrige le RGAA (alt, labels, titres…) via Claude — opt-in',
+      });
+      const worstFile = rgaaFailed[0]?.file;
+      if (worstFile !== undefined) {
+        tips.push({
+          cmd: `axaraaudit voice ${worstFile}`,
+          why: "entendez ce fichier comme un utilisateur de lecteur d'écran",
+        });
+      }
+    }
+    if (tips.length === 0) {
+      tips.push(
+        {
+          cmd: `axaraaudit audit --ci --fail-under ${String(payload.gate.failUnder)}`,
+          why: 'verrouillez ce score dans votre pipeline CI',
+        },
+        { cmd: 'axaraaudit history', why: "l'évolution du score sur les derniers commits" },
+      );
+    } else if (flags.format === 'pretty' && flags.out === undefined) {
+      tips.push({
+        cmd: 'axaraaudit audit --format html',
+        why: 'rapport autonome à partager avec l\'équipe',
+      });
+    }
+    printTips(tips.slice(0, 3));
   }
 
   if (flags.ci && !gate.passed) return 1;

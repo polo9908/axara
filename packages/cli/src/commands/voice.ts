@@ -14,6 +14,7 @@ import { jsxToHtml, simulateScreenReader, type VoiceAnnouncement } from '@axaraa
 import { ConfigError, loadRc } from '../config/rc.js';
 import { collectFiles } from '../scan/walk.js';
 import { bold, cyan, dim, green, red, yellow } from '../report/render.js';
+import { printTips } from '../ui/tips.js';
 
 const JSX_EXT = new Set(['.tsx', '.jsx']);
 const HTML_EXT = new Set(['.html', '.htm']);
@@ -103,7 +104,14 @@ export async function runVoice(argv: readonly string[]): Promise<number> {
       `  ${yellow(`${totalWarnings} annonce(s) dégradée(s)`)} sur ${totalAnnouncements} — ` +
         `invisible à l'œil, criant à l'oreille.\n`,
     );
-    process.stdout.write(dim('  Corrigez avec `axaraaudit fix --ai`, puis réécoutez.\n'));
+    const firstTarget = targets[0];
+    printTips([
+      { cmd: 'axaraaudit fix --ai --write', why: 'corrige alt, labels et titres manquants via Claude' },
+      ...(firstTarget !== undefined
+        ? [{ cmd: `axaraaudit voice ${relative(loaded.rootDir, firstTarget)}`, why: 'réécoutez après correction' }]
+        : []),
+    ]);
+    return 0;
   }
   process.stdout.write('\n');
   return 0;

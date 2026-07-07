@@ -8,6 +8,7 @@ import { basename, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 import { RC_FILENAME } from '../config/rc.js';
 import { dim, green, red } from '../report/render.js';
+import { printTips } from '../ui/tips.js';
 
 const TEMPLATE = (project: string): string =>
   `${JSON.stringify(
@@ -54,8 +55,10 @@ export function runInit(argv: readonly string[]): number {
 
   writeFileSync(target, TEMPLATE(basename(cwd)), 'utf8');
   process.stdout.write(green(`✓ ${RC_FILENAME} créé.\n`));
-  process.stdout.write(
-    dim('Adaptez "tokens" au chemin de votre fichier DTCG, puis lancez `axaraaudit audit`.\n'),
-  );
+  process.stdout.write(dim('Adaptez "tokens" au chemin de votre fichier DTCG.\n'));
+  printTips([
+    { cmd: 'axaraaudit audit', why: 'votre premier rapport avec cette configuration' },
+    { cmd: 'axaraaudit help audit', why: 'toutes les options d\'audit (CI, HTML, seuil…)' },
+  ]);
   return 0;
 }

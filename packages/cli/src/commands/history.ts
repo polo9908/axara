@@ -25,6 +25,7 @@ import { loadTokensSource } from '../config/tokens-source.js';
 import { collectFiles } from '../scan/walk.js';
 import { computeScore } from '../report/score.js';
 import { bold, cyan, dim, green, red, yellow } from '../report/render.js';
+import { printTips } from '../ui/tips.js';
 
 const CSS_EXT = new Set(['.css', '.scss', '.less', '.pcss']);
 const SPARK = '▁▂▃▄▅▆▇█';
@@ -158,6 +159,10 @@ export async function runHistory(argv: readonly string[]): Promise<number> {
     process.stdout.write(delta > 0 ? green(`   (+${delta} 🎉)`) : red(`   (${delta} 📉)`));
   }
   process.stdout.write('\n\n');
+  printTips([
+    { cmd: 'axaraaudit blame', why: 'qui a introduit chaque dérive ? (git blame)' },
+    { cmd: 'axaraaudit fix --all --write', why: 'effacez l\'ardoise en une commande' },
+  ]);
   return 0;
 }
 
@@ -229,6 +234,10 @@ export async function runBlame(argv: readonly string[]): Promise<number> {
     }
     if (entries.length > 5) process.stdout.write(dim(`     … et ${entries.length - 5} autre(s)\n`));
   });
-  process.stdout.write(dim('\n  Sans rancune — `axaraaudit fix --all --write` efface l’ardoise.\n\n'));
+  process.stdout.write('\n');
+  printTips([
+    { cmd: 'axaraaudit fix --all --write', why: 'sans rancune — efface l\'ardoise en une commande' },
+    { cmd: 'axaraaudit history', why: 'l\'évolution du score commit par commit' },
+  ]);
   return 0;
 }

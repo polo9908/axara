@@ -13,6 +13,7 @@ import { parseArgs } from 'node:util';
 import { checkFiles, type DriftIssue, type RgaaFinding } from '@axaraaudit/core';
 import { ConfigError } from '../config/rc.js';
 import { bold, cyan, dim, green, red, yellow } from '../report/render.js';
+import { printTips, type Tip } from '../ui/tips.js';
 
 export interface CheckFlags {
   readonly files: readonly string[];
@@ -168,6 +169,17 @@ export async function runCheck(argv: readonly string[]): Promise<number> {
         '\n',
     ),
   );
-  out(dim('  `axaraaudit fix` corrige le drift ; le RGAA demande une correction dans le code.\n\n'));
+  out('\n');
+  const tips: Tip[] = [];
+  if (driftIssues > 0) {
+    tips.push({ cmd: 'axaraaudit fix --write', why: 'corrige le drift (remplacements de tokens sûrs)' });
+  }
+  if (rgaaFailed > 0) {
+    tips.push({
+      cmd: 'axaraaudit fix --ai --write',
+      why: 'le RGAA demande une correction dans le code — Claude peut la proposer',
+    });
+  }
+  printTips(tips);
   return 1;
 }

@@ -21,6 +21,7 @@ import { loadTokensSource } from '../config/tokens-source.js';
 import { resolveAnthropicKey } from '../config/credentials.js';
 import { requestText, ClaudeError } from '../services/claude.js';
 import { collectFiles } from '../scan/walk.js';
+import { printTips } from '../ui/tips.js';
 import { computeScore, type FileRgaaFinding } from '../report/score.js';
 import { bold, cyan, dim, green, red, yellow } from '../report/render.js';
 
@@ -131,6 +132,12 @@ export async function runRoast(argv: readonly string[]): Promise<number> {
     const scoreColor = score >= 80 ? green : score >= 60 ? yellow : red;
     process.stdout.write(`\n  ${bold('SCORE')}  ${scoreColor(bold(`${score}/100`))}`);
     process.stdout.write(dim(`   · ${result.inputTokens + result.outputTokens} tokens API\n\n`));
+    if (score < 100) {
+      printTips([
+        { cmd: 'axaraaudit fix --ai --write', why: 'faites taire l\'humoriste : corrigez tout' },
+        { cmd: 'axaraaudit roast', why: 're-roast après corrections — il sera plus gentil' },
+      ]);
+    }
     return 0;
   } catch (error) {
     if (error instanceof ClaudeError) {

@@ -29,6 +29,7 @@ import { ConfigError } from '../config/rc.js';
 import { resolveAnthropicKey } from '../config/credentials.js';
 import { requestFileFix, ClaudeError, CLAUDE_MODEL } from '../services/claude.js';
 import { bold, cyan, dim, green, red, yellow } from '../report/render.js';
+import { printTips, type Tip } from '../ui/tips.js';
 
 const JSX_EXT = new Set(['.tsx', '.jsx']);
 const HTML_EXT = new Set(['.html', '.htm']);
@@ -255,16 +256,30 @@ export async function runFix(argv: readonly string[]): Promise<number> {
   if (ai) out(`, ${green(String(aiFixedFiles))} fichier(s) corrigé(s) par IA`);
   else out(`, ${String(remaining.length)} restante(s)`);
   out('\n');
+
+  // ── Tips contextuels : la prochaine étape logique selon le résultat ──
+  const tips: Tip[] = [];
   if (!write && (totalApplied > 0 || aiFixedFiles > 0)) {
-    out(dim('  Relancez avec --write pour appliquer.\n'));
+    tips.push({
+      cmd: `axaraaudit fix${all ? ' --all' : ''}${ai ? ' --ai' : ''} --write`,
+      why: 'appliquez ce que vous venez de prévisualiser',
+    });
+  }
+  if (write && (totalApplied > 0 || aiFixedFiles > 0)) {
+    tips.push({ cmd: 'axaraaudit audit', why: 'mesurez le nouveau score après corrections' });
+  }
+  if (!all && remaining.some((issue) => issue.match === 'nearest-token')) {
+    tips.push({
+      cmd: `axaraaudit fix --all${write ? ' --write' : ''}`,
+      why: 'inclut aussi les tokens proches (confiance ≥ 0.7)',
+    });
   }
   if (!ai) {
-    out(
-      dim(
-        '  Astuce : `axaraaudit fix --ai` corrige aussi le RGAA (alt, labels, titres…) et les valeurs sans token via Claude.\n',
-      ),
-    );
+    tips.push({
+      cmd: `axaraaudit fix --ai${write ? ' --write' : ''}`,
+      why: 'corrige aussi le RGAA (alt, labels, titres…) et les valeurs sans token via Claude',
+    });
   }
-  out('\n');
+  printTips(tips.slice(0, 3));
   return 0;
 }
