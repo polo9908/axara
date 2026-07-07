@@ -15,6 +15,10 @@ import { resolveToken } from '../config/credentials.js';
 import { fetchRemoteConfig, uploadReport, ApiError } from '../services/api.js';
 import { renderHtml } from '../report/html.js';
 import { renderPretty, dim, green, yellow } from '../report/render.js';
+import { stderrLevel } from '../ui/ansi.js';
+import { renderBanner } from '../ui/banner.js';
+import { canReveal, revealScore } from '../ui/reveal.js';
+import { createSpinner } from '../ui/spinner.js';
 import { CLI_NAME, CLI_VERSION } from '../version.js';
 
 export interface AuditFlags {
@@ -75,6 +79,11 @@ export async function runAudit(argv: readonly string[]): Promise<number> {
   const flags = parseAuditFlags(argv);
   const cwd = process.cwd();
 
+  // Bannière de marque sur stderr : visible en interactif, absente des pipes.
+  if (flags.format === 'pretty' && process.stderr.isTTY === true) {
+    process.stderr.write(renderBanner(stderrLevel));
+  }
+
   let loaded = loadRc(cwd, flags.config);
   const token = resolveToken();
 
@@ -104,20 +113,33 @@ export async function runAudit(argv: readonly string[]): Promise<number> {
   }
 
   // ── Collect, analyse, score (single shared pipeline in core) ──
-  const result = await auditProject({
-    cwd,
-    tool: CLI_NAME,
-    toolVersion: CLI_VERSION,
-    loaded,
-    ...(flags.failUnder !== undefined
-      ? { rcOverrides: { ci: { failUnder: flags.failUnder } } }
-      : {}),
-    ...(flags.tokens !== undefined ? { tokensPath: flags.tokens } : {}),
-    ...(inlineTokensJson !== null ? { inlineTokensJson } : {}),
-    skipRgaa: flags.skipRgaa,
-    ciMode: flags.ci,
-  });
+  const spinner = createSpinner('Analyse du design-system + RGAA…');
+  if (flags.format === 'pretty') spinner.start();
+  let result: Awaited<ReturnType<typeof auditProject>>;
+  try {
+    result = await auditProject({
+      cwd,
+      tool: CLI_NAME,
+      toolVersion: CLI_VERSION,
+      loaded,
+      ...(flags.failUnder !== undefined
+        ? { rcOverrides: { ci: { failUnder: flags.failUnder } } }
+        : {}),
+      ...(flags.tokens !== undefined ? { tokensPath: flags.tokens } : {}),
+      ...(inlineTokensJson !== null ? { inlineTokensJson } : {}),
+      skipRgaa: flags.skipRgaa,
+      ciMode: flags.ci,
+    });
+  } catch (error) {
+    if (flags.format === 'pretty') spinner.fail('Audit interrompu');
+    throw error;
+  }
   const { payload, gate, rc } = result;
+  if (flags.format === 'pretty') {
+    spinner.succeed(
+      `Audit terminé — ${payload.drift.summary.filesScanned} fichier(s) analysé(s)`,
+    );
+  }
 
   if (result.tokensSource.origin === 'auto') {
     log(green(`✓ Zéro-config : ${result.tokensSource.detail}.`));
@@ -125,10 +147,13 @@ export async function runAudit(argv: readonly string[]): Promise<number> {
   }
 
   const json = JSON.stringify(payload, null, 2);
+  // Sur TTY, la section SCORE textuelle cède la place à la révélation animée.
+  const animateScore = flags.format !== 'json' && canReveal();
   if (flags.format === 'html') {
     const outPath = flags.out ?? 'axara-report.html';
     writeFileSync(outPath, renderHtml(payload), 'utf8');
-    process.stdout.write(renderPretty(payload, loaded.rootDir));
+    process.stdout.write(renderPretty(payload, loaded.rootDir, { verdict: !animateScore }));
+    if (animateScore) await revealScore(payload.score, payload.gate);
     log(green(`✓ Rapport HTML écrit : ${outPath}`));
     log(dim('  Ouvrez-le dans un navigateur — fichier autonome, partageable tel quel.'));
   } else {
@@ -139,7 +164,8 @@ export async function runAudit(argv: readonly string[]): Promise<number> {
     if (flags.format === 'json') {
       process.stdout.write(`${json}\n`);
     } else {
-      process.stdout.write(renderPretty(payload, loaded.rootDir));
+      process.stdout.write(renderPretty(payload, loaded.rootDir, { verdict: !animateScore }));
+      if (animateScore) await revealScore(payload.score, payload.gate);
     }
   }
 

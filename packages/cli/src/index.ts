@@ -15,6 +15,7 @@ import { runFix } from './commands/fix.js';
 import { runVoice } from './commands/voice.js';
 import { runBlame, runHistory } from './commands/history.js';
 import { runRoast } from './commands/roast.js';
+import { runHello } from './commands/hello.js';
 import { runInit } from './commands/init.js';
 import { runLogin, runLogout, runWhoami } from './commands/login.js';
 import { CLI_NAME, CLI_VERSION } from './version.js';
@@ -43,6 +44,8 @@ COMMANDES (open source)
   roast          😈 L'audit commenté par un humoriste (clé IA requise,
                  cinglant mais bienveillant)
   init           Génère un .auditorrc.json de démarrage
+  hello          🦎 Rencontrez Axa, la mascotte, et la charte graphique
+                 (--demo rejoue un audit animé — idéal pour un GIF)
 
 COMMANDES (passerelle Pro & IA)
   login          Enregistre un jeton d'accès (--token <jeton>)
@@ -106,6 +109,8 @@ async function main(): Promise<number> {
       return runRoast(rest);
     case 'init':
       return runInit(rest);
+    case 'hello':
+      return runHello(rest);
     case 'login':
       return runLogin(rest);
     case 'logout':

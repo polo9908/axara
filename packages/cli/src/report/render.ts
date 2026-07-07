@@ -6,6 +6,8 @@
 import { relative } from 'node:path';
 import type { DriftIssue } from '@axaraaudit/core';
 import type { AuditPayload } from './payload.js';
+import { gradient, stdoutLevel } from '../ui/ansi.js';
+import { BRAND } from '../ui/theme.js';
 
 const useColor = process.stdout.isTTY === true && process.env['NO_COLOR'] === undefined;
 const ESC = String.fromCharCode(27);
@@ -39,10 +41,21 @@ function renderDriftIssue(issue: DriftIssue): string {
   return `    ${pos}  ${dim(issue.property)}  ${value}${target}${badge}`;
 }
 
-export function renderPretty(payload: AuditPayload, rootDir: string): string {
+export interface RenderPrettyOptions {
+  /** `false` quand la révélation animée du score prend le relais (TTY). */
+  readonly verdict?: boolean;
+}
+
+export function renderPretty(
+  payload: AuditPayload,
+  rootDir: string,
+  options: RenderPrettyOptions = {},
+): string {
   const lines: string[] = [];
   lines.push('');
-  lines.push(bold(`  AXARA AUDIT — ${payload.project}`));
+  lines.push(
+    `  ${bold(gradient('AXARA AUDIT', BRAND.violet, BRAND.cyan, stdoutLevel))} ${dim('—')} ${bold(payload.project)}`,
+  );
   lines.push(
     dim(
       `  ${payload.generatedAt} · ${payload.drift.summary.filesScanned} fichier(s) analysé(s)`,
@@ -101,17 +114,21 @@ export function renderPretty(payload: AuditPayload, rootDir: string): string {
     );
   }
 
-  // — Score & gate —
-  lines.push(RULE);
-  const scoreColor = payload.score >= payload.gate.failUnder ? green : red;
-  lines.push(`  ${bold('SCORE')}  ${scoreColor(bold(`${payload.score}/100`))}`);
-  if (payload.gate.evaluated) {
-    if (payload.gate.passed) {
-      lines.push(green(bold('  GATE   PASSED')));
-    } else {
-      lines.push(red(bold('  GATE   FAILED')));
-      for (const reason of payload.gate.reasons) lines.push(red(`    · ${reason}`));
+  // — Score & gate (omis quand la révélation animée prend le relais) —
+  if (options.verdict !== false) {
+    lines.push(RULE);
+    const scoreColor = payload.score >= payload.gate.failUnder ? green : red;
+    lines.push(`  ${bold('SCORE')}  ${scoreColor(bold(`${payload.score}/100`))}`);
+    if (payload.gate.evaluated) {
+      if (payload.gate.passed) {
+        lines.push(green(bold('  GATE   PASSED')));
+      } else {
+        lines.push(red(bold('  GATE   FAILED')));
+        for (const reason of payload.gate.reasons) lines.push(red(`    · ${reason}`));
+      }
     }
+  } else {
+    lines.push(RULE);
   }
   lines.push('');
   return lines.join('\n');
