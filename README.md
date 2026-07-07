@@ -1,14 +1,42 @@
+<div align="center">
+
 # AxaraAudit
 
-**Automatic accessibility and design-system consistency checker.**
+**Accessibility (RGAA 4.1 / WCAG) and design-token consistency — for humans *and* AI agents.**
+
+[![npm version](https://img.shields.io/npm/v/%40axaraaudit%2Fcli?label=%40axaraaudit%2Fcli&color=6366f1)](https://www.npmjs.com/package/@axaraaudit/cli)
+[![npm version](https://img.shields.io/npm/v/%40axaraaudit%2Fmcp-server?label=%40axaraaudit%2Fmcp-server&color=6366f1)](https://www.npmjs.com/package/@axaraaudit/mcp-server)
+[![license](https://img.shields.io/badge/license-MIT-6366f1)](#license)
+[![node](https://img.shields.io/badge/node-%E2%89%A520-6366f1)](#requirements)
+
+</div>
 
 AxaraAudit scans your codebase and tells you three things:
 
-1. 🎨 Hard-coded colors/spacing that should use your design tokens (`#6366f1` → `var(--color-brand-primary)`)
-2. ♿ Accessibility violations against RGAA 4.1 / WCAG (missing `alt`, inputs without labels, keyboard traps…)
-3. 📊 A 0–100 compliance score you can use to block your CI pipeline when quality drops
+| | |
+|---|---|
+| 🎨 | Hard-coded colors/spacing that should use your design tokens — `#6366f1` → `var(--color-brand-primary)` |
+| ♿ | Accessibility violations against RGAA 4.1 / WCAG — missing `alt`, inputs without labels, keyboard traps… |
+| 📊 | A single 0–100 compliance score you can use to gate your CI pipeline |
+
+And — what sets it apart — it does the same thing **inside an AI agent's generation loop**, not just after the fact: a Claude Code plugin validates every file an agent writes in real time, and an MCP server exposes the same rules and audit engine as tools any agent can call.
 
 > **Open-core model**: the local audit is 100% free and open source. Cloud features (dashboard, remote sync, history) are Pro.
+
+---
+
+## Contents
+
+- [Try it in 10 seconds](#try-it-in-10-seconds-zero-config)
+- [🤖 Built for AI agents](#-built-for-ai-agents) — Claude Code plugin, MCP server, `check` command
+- [Feature tour](#feature-tour)
+- [Installation](#installation)
+- [Getting started with a config file](#getting-started-with-a-config-file)
+- [CI/CD integration](#cicd-integration)
+- [Configuration reference](#auditorrcjson-reference)
+- [Token format](#token-format-design-tokensdtcgjson)
+- [Monorepo packages](#monorepo-packages)
+- [Development](#development)
 
 ---
 
@@ -38,7 +66,93 @@ token drift + RGAA accessibility, with a score out of 100.
 
 ---
 
-## What can you actually do with it? A quick tour
+## 🤖 Built for AI agents
+
+Today's products need to work for the humans **and** the agents writing code for them.
+AxaraAudit ships three layers so an agent generates UI that is accessible and
+token-correct **by construction**, not fixed up after review — and every layer runs
+the exact same audit engine, so the score never disagrees with itself.
+
+### 1. Claude Code plugin — validation in real time
+
+```
+/plugin marketplace add polo9908/axara
+/plugin install axara-audit@axara
+```
+
+A `PostToolUse` hook fires after every `Edit`/`Write` on a UI file. If the agent
+just wrote a hard-coded color or an image with no `alt`, it gets told immediately
+— and fixes its own code before you ever open the diff:
+
+```
+Claude writes Header.tsx:
+  <img src="hero.png" />
+  color: #6366f1;
+
+              ↓ hook runs `axaraaudit check` automatically
+
+AxaraAudit : 2 problème(s) d'accessibilité/design system dans Header.tsx :
+- RGAA 1.1 (critical) : Chaque image porteuse d'information a-t-elle
+  une alternative textuelle ? — élément : <img src="hero.png">
+- L12 color: #6366f1 → remplace par var(--color-brand-primary)
+Corrige ce fichier immédiatement…
+
+              ↓ Claude corrects it on its own, no human involved
+```
+
+The plugin also bundles the MCP server below and a design-system skill.
+[Plugin docs →](claude-plugin/README.md)
+
+### 2. MCP server — tools for any agent
+
+```bash
+claude mcp add axara -- npx -y @axaraaudit/mcp-server
+```
+
+Five tools an agent can call directly from its context, each with a declared
+output schema and read-only/destructive annotations:
+
+| Tool | What it does |
+|---|---|
+| `get_design_system_rules` | Returns your DTCG tokens as ready-to-use `var(--token)` references |
+| `validate_component_code` | Audits a React/Vue/HTML snippet for RGAA + drift before it's shipped |
+| `audit_project` | Full-project score + worst violations first (same engine as the CLI) |
+| `fix_drift` | Applies safe token fixes — **dry-run by default**, `write: true` to persist |
+| `explain_rule` | Explains any RGAA criterion (wording, WCAG refs, mapped axe-core rules) |
+
+Plus resources: `axara://design-tokens`, `axara://config`, `axara://report/latest`.
+[MCP server docs →](packages/mcp-server/README.md)
+
+### 3. `axaraaudit check` — the automation primitive
+
+```bash
+npx axaraaudit check src/Header.tsx --format json
+```
+
+```json
+{
+  "conformant": false,
+  "summary": { "filesChecked": 1, "driftIssues": 1, "rgaaFailed": 1, "rgaaToReview": 0 },
+  "files": [{
+    "file": "src/Header.tsx",
+    "rgaa": [{ "criterion": "1.1", "impact": "critical", "status": "failed" }],
+    "drift": [{ "line": 12, "property": "color", "value": "#6366f1", "replacement": "var(--color-brand-primary)" }]
+  }]
+}
+```
+
+Exit `0` = conformant, exit `1` = violations found. Validates specific files
+without walking the whole project — built for hooks (the plugin above uses it),
+`pre-commit`, `lint-staged`, or any custom agent loop. Works even with no design
+system at all (falls back to RGAA-only).
+
+> **Why this matters:** CLI, MCP server and Claude Code plugin all call the same
+> `@axaraaudit/core` pipeline. A CI gate and a coding agent never disagree about
+> whether a component is conformant.
+
+---
+
+## Feature tour
 
 ### 1. Catch design tokens drifting out of sync
 
@@ -205,6 +319,26 @@ Claude comments on your audit results with sharp-but-friendly humor, then gives
 you a 3-step "redemption plan." Great for sharing with the team without sounding
 preachy (requires an Anthropic key, same as `fix --ai`).
 
+### 10. Validate specific files, fast (`check`)
+
+```bash
+npx axaraaudit check src/Header.tsx src/app.css
+```
+
+```
+  CHECK — 2 fichier(s)
+
+  src/Header.tsx
+    ✖ RGAA 1.1 — Chaque image porteuse d'information a-t-elle une alternative textuelle ? (critical)
+  src/app.css
+    ≈ L1  background-color: #6366f1 → var(--color-brand-primary)
+
+  ✖ 1 violation(s) RGAA, 1 drift(s)
+```
+
+The building block behind the Claude Code plugin's hook — see
+[Built for AI agents](#-built-for-ai-agents) above.
+
 ---
 
 ## Installation (once you're past the `npx` trial)
@@ -278,7 +412,13 @@ npx axaraaudit fix --all --write # include near-matches (confidence ≥ 0.7)
 npx axaraaudit fix --ai --write  # + AI fixes for RGAA and unmatched values
 ```
 
-### 4. Pro authentication (optional)
+### 4. Validate specific files (fast path)
+
+```bash
+npx axaraaudit check src/Header.tsx --format json   # exit 0 conformant, 1 otherwise
+```
+
+### 5. Pro authentication (optional)
 
 ```bash
 npx axaraaudit login --token <your-token>
@@ -317,12 +457,12 @@ jobs:
           path: audit-report.json
 ```
 
-**Exit codes:**
+**Exit codes** (`audit`, `check`):
 
 | Code | Meaning |
 |---|---|
-| `0` | Audit passed (or non-CI mode) |
-| `1` | CI gate failed (score below threshold or blocking criterion) |
+| `0` | Passed (score/gate OK, or `check` found no violation) |
+| `1` | CI gate failed (score below threshold, blocking criterion, or `check` found a violation) |
 | `2` | Configuration error |
 
 ---
@@ -403,58 +543,15 @@ Tokens automatically generate kebab-case CSS variables:
 
 ---
 
-## For AI agents (MCP & Claude Code plugin)
-
-### Claude Code plugin — accessible *by construction*
-
-```
-/plugin marketplace add polo9908/axara
-/plugin install axara-audit@axara
-```
-
-Every UI file Claude writes is validated on the spot (a `PostToolUse` hook runs
-`axaraaudit check` on the touched file); violations are fed straight back to
-the model, which fixes its own code before you even review the diff. The
-plugin also bundles the MCP server and a design-system skill.
-[Plugin docs →](claude-plugin/README.md)
-
-### MCP server
-
-AxaraAudit ships a first-class [MCP server](packages/mcp-server/README.md) so
-coding agents (Claude Code, or any MCP client) can generate UI that is
-token-correct and RGAA-accessible *by construction*:
-
-```bash
-claude mcp add axara -- npx -y @axaraaudit/mcp-server
-```
-
-Five tools — `get_design_system_rules`, `validate_component_code`,
-`audit_project`, `fix_drift` (dry-run by default), `explain_rule` — plus
-resources (`axara://design-tokens`, `axara://config`, `axara://report/latest`).
-Every tool declares an output schema and read-only/destructive annotations, and
-runs the **same core pipeline as the CLI**: an agent and your CI always see the
-same score.
-
-### `axaraaudit check` — the automation primitive
-
-```bash
-npx axaraaudit check src/Header.tsx --format json   # exit 0 conforme, 1 sinon
-```
-
-Targeted validation of specific files (drift + RGAA) without walking the whole
-project — built for hooks (Claude Code, pre-commit, lint-staged) and agent
-loops. Works even without a design system (RGAA-only).
-
----
-
 ## Monorepo packages
 
 | Package | Role |
 |---|---|
-| [`@axaraaudit/core`](packages/core/README.md) | Engine: DTCG parsing, AST analysis, RGAA/axe-core, auto-fix, project orchestration (audit/fix/score) |
+| [`@axaraaudit/core`](packages/core/README.md) | Engine: DTCG parsing, AST analysis, RGAA/axe-core, auto-fix, project orchestration (audit/fix/check/score) |
 | [`@axaraaudit/cli`](packages/cli/README.md) | The `axaraaudit` CLI (what you use day to day) |
 | [`@axaraaudit/runtime`](packages/runtime/README.md) | Playwright: keyboard trap detection + Figma Variables sync |
 | [`@axaraaudit/mcp-server`](packages/mcp-server/README.md) | MCP server for AI agents: project audit, component validation, safe auto-fix |
+| [`claude-plugin/`](claude-plugin/README.md) | Claude Code plugin: real-time validation hook + bundled MCP server + skill |
 
 ---
 
