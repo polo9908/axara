@@ -14,8 +14,96 @@ import {
   type DriftIssue,
   type RgaaReport,
 } from '@axaraaudit/core';
+import { z } from 'zod';
 import { toHtml, type Framework } from '../normalize.js';
 import { resolveTokensPath, loadTokens } from '../tokens-source.js';
+
+const rgaaOccurrenceSchema = z.object({
+  target: z.string(),
+  html: z.string(),
+  failureSummary: z.string(),
+});
+
+const rgaaFindingSchema = z.object({
+  criterion: z.string(),
+  theme: z.number(),
+  themeLabel: z.string(),
+  criterionTitle: z.string(),
+  wcag: z.array(z.string()),
+  axeRuleId: z.string(),
+  impact: z.enum(['minor', 'moderate', 'serious', 'critical']).nullable(),
+  status: z.enum(['failed', 'cantTell']),
+  description: z.string(),
+  helpUrl: z.string(),
+  occurrences: z.array(rgaaOccurrenceSchema),
+});
+
+const driftIssueSchema = z.object({
+  file: z.string(),
+  line: z.number(),
+  column: z.number(),
+  category: z.string(),
+  property: z.string(),
+  value: z.string(),
+  severity: z.enum(['error', 'warning']),
+  match: z.enum(['exact-token', 'nearest-token', 'no-token']),
+  message: z.string(),
+  autoFixable: z.boolean(),
+  suggestion: z
+    .object({
+      token: z.string(),
+      cssVar: z.string(),
+      tokenValue: z.string(),
+      replacement: z.string(),
+      distance: z.number(),
+      confidence: z.number(),
+    })
+    .optional(),
+});
+
+export const VALIDATE_COMPONENT_CODE_OUTPUT = {
+  framework: z.enum(['react', 'vue', 'html']),
+  scope: z.enum(['component', 'page']),
+  normalizedHtml: z.string(),
+  verdict: z.object({
+    conformant: z.boolean(),
+    rgaaCriteriaFailed: z.number(),
+    rgaaCriteriaToReview: z.number(),
+    driftErrors: z.number(),
+    driftWarnings: z.number(),
+  }),
+  rgaa: z.object({
+    summary: z.object({
+      criteriaFailed: z.number(),
+      criteriaToReview: z.number(),
+      totalFindings: z.number(),
+      byImpact: z.record(z.string(), z.number()),
+      byTheme: z.record(z.string(), z.number()),
+    }),
+    findings: z.array(rgaaFindingSchema),
+    unmappedRules: z.array(z.string()),
+  }),
+  ara: z.object({
+    generator: z.string(),
+    generatedAt: z.string(),
+    referential: z.string(),
+    referentialVersion: z.string(),
+    criteria: z.array(
+      z.object({
+        topic: z.number(),
+        criterium: z.string(),
+        status: z.string(),
+        userImpact: z.string(),
+        comment: z.string(),
+        occurrenceCount: z.number(),
+      }),
+    ),
+    nonComplianceCount: z.number(),
+    note: z.string(),
+  }),
+  drift: z.array(driftIssueSchema),
+  notes: z.array(z.string()),
+};
 
 /** Validation scope: a `component` fragment vs a full `page`. */
 export type ValidationScope = 'component' | 'page';

@@ -5,7 +5,28 @@
  */
 
 import type { TokenCategory } from '@axaraaudit/core';
+import { z } from 'zod';
 import { loadTokens } from '../tokens-source.js';
+
+const tokenRuleSchema = z.object({
+  path: z.string().describe('Chemin DTCG du token, ex. color.brand.primary.'),
+  category: z.string().nullable(),
+  type: z.string(),
+  value: z.string(),
+  cssVar: z.string(),
+  reference: z.string().describe('Référence prête à l’emploi, ex. var(--color-brand-primary).'),
+  description: z.string().optional(),
+});
+
+export const GET_DESIGN_SYSTEM_RULES_OUTPUT = {
+  tokensPath: z.string(),
+  count: z.number(),
+  colors: z.array(tokenRuleSchema),
+  dimensions: z.array(tokenRuleSchema),
+  other: z.array(tokenRuleSchema),
+  errors: z.array(z.string()),
+  guidance: z.string(),
+};
 
 export interface GetDesignSystemRulesInput {
   readonly tokensPath?: string | undefined;

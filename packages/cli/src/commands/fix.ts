@@ -17,21 +17,17 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { extname, relative } from 'node:path';
 import { parseArgs } from 'node:util';
 import {
-  auditSources,
   auditHtmlRgaa,
-  fixFile,
+  fixProject,
   jsxToHtml,
   PAGE_SCOPED_RULES,
   type DesignToken,
   type DriftIssue,
   type RgaaFinding,
-  type SourceFile,
 } from '@axaraaudit/core';
-import { ConfigError, loadRc } from '../config/rc.js';
-import { loadTokensSource } from '../config/tokens-source.js';
+import { ConfigError } from '../config/rc.js';
 import { resolveAnthropicKey } from '../config/credentials.js';
 import { requestFileFix, ClaudeError, CLAUDE_MODEL } from '../services/claude.js';
-import { collectFiles } from '../scan/walk.js';
 import { bold, cyan, dim, green, red, yellow } from '../report/render.js';
 
 const JSX_EXT = new Set(['.tsx', '.jsx']);
@@ -103,31 +99,20 @@ export async function runFix(argv: readonly string[]): Promise<number> {
     throw new ConfigError(`--min-confidence doit être un nombre entre 0 et 1 (reçu: ${rawConfidence}).`);
   }
 
-  const loaded = loadRc(process.cwd(), values.config);
-  const filePaths = collectFiles(
-    loaded.rootDir,
-    loaded.rc.include,
-    loaded.rc.exclude,
-    loaded.rc.extensions,
-  );
-  const files: SourceFile[] = filePaths.map((path) => ({
-    path,
-    content: readFileSync(path, 'utf8'),
-  }));
+  // ── 1. Mechanical pass (exact tokens, plus near-misses with --all) ──
+  // Shared pipeline in core: same collection, same tokens, same fixes as MCP.
+  const mech = fixProject({
+    cwd: process.cwd(),
+    ...(values.config !== undefined ? { configPath: values.config } : {}),
+    ...(values.tokens !== undefined ? { tokensPath: values.tokens } : {}),
+    write,
+    all,
+    minConfidence,
+  });
+  const { loaded, report, files: filePaths, totalApplied, remaining } = mech;
 
-  const tokensSource = loadTokensSource(loaded, values.tokens, files);
-  const tokensJson = tokensSource.json;
-  if (tokensSource.origin === 'auto') {
-    process.stderr.write(green(`✓ Zéro-config : ${tokensSource.detail}.\n`));
-  }
-
-  const report = auditSources(tokensJson, files, { remBasePx: loaded.rc.remBasePx });
-
-  const byFile = new Map<string, DriftIssue[]>();
-  for (const issue of report.issues) {
-    const list = byFile.get(issue.file) ?? [];
-    list.push(issue);
-    byFile.set(issue.file, list);
+  if (mech.tokensSource.origin === 'auto') {
+    process.stderr.write(green(`✓ Zéro-config : ${mech.tokensSource.detail}.\n`));
   }
 
   const rel = (path: string): string => relative(loaded.rootDir, path);
@@ -137,29 +122,13 @@ export async function runFix(argv: readonly string[]): Promise<number> {
   out(ai ? dim('  (+ passe IA)') : '');
   out('\n\n');
 
-  // ── 1. Mechanical pass (exact tokens, plus near-misses with --all) ──
-  let totalApplied = 0;
-  const appliedKeys = new Set<string>();
-  for (const [path, issues] of byFile) {
-    const result = fixFile(path, issues, {
-      dryRun: !write,
-      onlyAutoFixable: !all,
-      minConfidence,
-    });
-    totalApplied += result.applied.length;
-    if (result.applied.length === 0) continue;
-
-    out(`  ${cyan(rel(path))}\n`);
-    for (const fix of result.applied) {
-      appliedKeys.add(`${path}:${fix.line}:${fix.column}`);
+  for (const fileResult of mech.fixed) {
+    out(`  ${cyan(rel(fileResult.path))}\n`);
+    for (const fix of fileResult.applied) {
       out(`    ${green('✓')} ${dim(`L${fix.line}`)}  ${fix.from} → ${green(fix.to)}\n`);
     }
   }
   if (totalApplied === 0) out(dim('  (aucune correction mécanique applicable)\n'));
-
-  const remaining = report.issues.filter(
-    (issue) => !appliedKeys.has(`${issue.file}:${issue.line}:${issue.column}`),
-  );
 
   // ── 2. Optional AI pass (RGAA + drifts the mechanics could not solve) ──
   let aiFixedFiles = 0;

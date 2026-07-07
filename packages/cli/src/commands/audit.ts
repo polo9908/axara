@@ -7,28 +7,15 @@
  * `--ci` turns the run into a gatekeeper: exit code 1 when the gate fails.
  */
 
-import { readFileSync, writeFileSync } from 'node:fs';
-import { extname, relative } from 'node:path';
+import { writeFileSync } from 'node:fs';
 import { parseArgs } from 'node:util';
-import {
-  auditSources,
-  auditHtmlRgaa,
-  jsxToHtml,
-  PAGE_SCOPED_RULES,
-  type SourceFile,
-} from '@axaraaudit/core';
+import { auditProject } from '@axaraaudit/core';
 import { loadRc, mergeRc, ConfigError } from '../config/rc.js';
-import { loadTokensSource } from '../config/tokens-source.js';
 import { resolveToken } from '../config/credentials.js';
 import { fetchRemoteConfig, uploadReport, ApiError } from '../services/api.js';
-import { collectFiles } from '../scan/walk.js';
-import { computeScore, evaluateGate, type FileRgaaFinding } from '../report/score.js';
-import { buildPayload } from '../report/payload.js';
 import { renderHtml } from '../report/html.js';
 import { renderPretty, dim, green, yellow } from '../report/render.js';
-
-const JSX_EXT = new Set(['.tsx', '.jsx']);
-const HTML_EXT = new Set(['.html', '.htm']);
+import { CLI_NAME, CLI_VERSION } from '../version.js';
 
 export interface AuditFlags {
   readonly config?: string;
@@ -116,69 +103,26 @@ export async function runAudit(argv: readonly string[]): Promise<number> {
     }
   }
 
-  const rc = flags.failUnder === undefined
-    ? loaded.rc
-    : mergeRc(loaded.rc, { ci: { failUnder: flags.failUnder } });
-
-  // ── Collect & analyse (open-source core) ──
-  const filePaths = collectFiles(loaded.rootDir, rc.include, rc.exclude, rc.extensions);
-  const files: SourceFile[] = filePaths.map((path) => ({
-    path,
-    content: readFileSync(path, 'utf8'),
-  }));
-
-  let tokensJson: string;
-  if (inlineTokensJson !== null) {
-    tokensJson = inlineTokensJson;
-  } else {
-    const source = loadTokensSource(loaded, flags.tokens, files);
-    tokensJson = source.json;
-    if (source.origin === 'auto') {
-      log(green(`✓ Zéro-config : ${source.detail}.`));
-      log(dim('  (aucun fichier de tokens déclaré — les custom properties CSS font foi)'));
-    }
-  }
-
-  const drift = auditSources(tokensJson, files, { remBasePx: rc.remBasePx });
-
-  const rgaaEnabled = rc.rgaa.enabled && !flags.skipRgaa;
-  const rgaaFindings: FileRgaaFinding[] = [];
-  let rgaaFilesAudited = 0;
-  if (rgaaEnabled) {
-    for (const file of files) {
-      const ext = extname(file.path).toLowerCase();
-      let html: string | null = null;
-      if (JSX_EXT.has(ext)) html = jsxToHtml(file.content);
-      else if (HTML_EXT.has(ext)) html = file.content;
-      if (html === null || html.trim() === '') continue;
-
-      rgaaFilesAudited += 1;
-      const report = await auditHtmlRgaa(html, {
-        contrast: rc.rgaa.contrast,
-        ...(rc.rgaa.scope === 'component' ? { disableRules: PAGE_SCOPED_RULES } : {}),
-      });
-      for (const finding of report.findings) {
-        rgaaFindings.push({ file: relative(loaded.rootDir, file.path), finding });
-      }
-    }
-  }
-
-  // ── Score, gate, report ──
-  const score = computeScore(drift.summary, rgaaFindings);
-  const gate = evaluateGate(score, rgaaFindings, {
-    failUnder: rc.ci.failUnder,
-    blockOnCritical: rc.ci.blockOnCritical,
-    priority: rc.rgaa.priority,
-  });
-  const payload = buildPayload({
-    project: rc.project,
-    drift,
-    rgaaEnabled,
-    rgaaFilesAudited,
-    rgaaFindings,
-    gate,
+  // ── Collect, analyse, score (single shared pipeline in core) ──
+  const result = await auditProject({
+    cwd,
+    tool: CLI_NAME,
+    toolVersion: CLI_VERSION,
+    loaded,
+    ...(flags.failUnder !== undefined
+      ? { rcOverrides: { ci: { failUnder: flags.failUnder } } }
+      : {}),
+    ...(flags.tokens !== undefined ? { tokensPath: flags.tokens } : {}),
+    ...(inlineTokensJson !== null ? { inlineTokensJson } : {}),
+    skipRgaa: flags.skipRgaa,
     ciMode: flags.ci,
   });
+  const { payload, gate, rc } = result;
+
+  if (result.tokensSource.origin === 'auto') {
+    log(green(`✓ Zéro-config : ${result.tokensSource.detail}.`));
+    log(dim('  (aucun fichier de tokens déclaré — les custom properties CSS font foi)'));
+  }
 
   const json = JSON.stringify(payload, null, 2);
   if (flags.format === 'html') {

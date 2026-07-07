@@ -2,8 +2,10 @@
 /**
  * A11yEngine MCP server entry point — speaks JSON-RPC 2.0 over stdio.
  *
- * Run directly (`a11yengine-mcp`) or register in an MCP client config, e.g.:
- *   { "mcpServers": { "a11yengine": { "command": "a11yengine-mcp" } } }
+ * Register in an MCP client with npx (no install needed):
+ *   claude mcp add axara -- npx -y @axaraaudit/mcp-server
+ * or in a config file:
+ *   { "mcpServers": { "axara": { "command": "npx", "args": ["-y", "@axaraaudit/mcp-server"] } } }
  */
 
 import { pathToFileURL } from 'node:url';

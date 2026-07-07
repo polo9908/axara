@@ -1,7 +1,7 @@
 {
   "name": "@axaraaudit/mcp-server",
-  "version": "0.1.3",
-  "description": "A11yEngine Model Context Protocol server (JSON-RPC 2.0 over stdio)",
+  "version": "0.2.0",
+  "description": "AxaraAudit MCP server: design-token rules, RGAA validation, project audit & drift auto-fix for AI agents (stdio, JSON-RPC 2.0)",
   "license": "MIT",
   "type": "module",
   "keywords": [
@@ -18,7 +18,8 @@
     "directory": "packages/mcp-server"
   },
   "bin": {
-    "a11yengine-mcp": "./dist/index.js"
+    "a11yengine-mcp": "./dist/index.js",
+    "axaraaudit-mcp": "./dist/index.js"
   },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",

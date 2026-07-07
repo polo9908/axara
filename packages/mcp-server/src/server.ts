@@ -1,20 +1,41 @@
 /**
  * A11yEngine MCP server.
  *
- * Exposes two tools — `get_design_system_rules` and `validate_component_code` —
- * and ships the accessibility system prompt both as server `instructions`
- * (surfaced on initialize) and as a callable prompt.
+ * Five tools — `get_design_system_rules`, `validate_component_code`,
+ * `audit_project`, `fix_drift`, `explain_rule` — plus three resources
+ * (`axara://design-tokens`, `axara://config`, `axara://report/latest`) and the
+ * accessibility system prompt, shipped both as server `instructions` and as a
+ * callable prompt. Every tool declares an `outputSchema` (results also arrive
+ * as `structuredContent`) and behavior annotations so clients can plan
+ * permissions: everything is read-only except `fix_drift` with `write: true`.
  */
 
+import { readFileSync } from 'node:fs';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
+import { loadRc } from '@axaraaudit/core';
 import { z } from 'zod';
 import { ACCESSIBILITY_SYSTEM_PROMPT } from './prompt.js';
-import { getDesignSystemRules } from './tools/get-design-system-rules.js';
-import { validateComponentCode } from './tools/validate-component-code.js';
+import { getLastReport } from './report-store.js';
+import {
+  getDesignSystemRules,
+  GET_DESIGN_SYSTEM_RULES_OUTPUT,
+} from './tools/get-design-system-rules.js';
+import {
+  validateComponentCode,
+  VALIDATE_COMPONENT_CODE_OUTPUT,
+} from './tools/validate-component-code.js';
+import {
+  runAuditProject,
+  AUDIT_PROJECT_INPUT,
+  AUDIT_PROJECT_OUTPUT,
+} from './tools/audit-project.js';
+import { runFixDrift, FIX_DRIFT_INPUT, FIX_DRIFT_OUTPUT } from './tools/fix-drift.js';
+import { runExplainRule, EXPLAIN_RULE_INPUT, EXPLAIN_RULE_OUTPUT } from './tools/explain-rule.js';
+import { resolveTokensPath } from './tokens-source.js';
+import { SERVER_NAME, SERVER_VERSION } from './version.js';
 
-export const SERVER_NAME = 'a11yengine';
-export const SERVER_VERSION = '0.0.0';
+export { SERVER_NAME, SERVER_VERSION } from './version.js';
 
 function jsonResult(payload: unknown): CallToolResult {
   return {
@@ -33,9 +54,11 @@ export function createServer(): McpServer {
     { name: SERVER_NAME, version: SERVER_VERSION },
     {
       instructions: ACCESSIBILITY_SYSTEM_PROMPT,
-      capabilities: { tools: {}, prompts: {} },
+      capabilities: { tools: {}, prompts: {}, resources: {} },
     },
   );
+
+  // ── Tools ──────────────────────────────────────────────────────────────
 
   server.registerTool(
     'get_design_system_rules',
@@ -49,6 +72,8 @@ export function createServer(): McpServer {
           .optional()
           .describe('Chemin du fichier DTCG (sinon: $A11YENGINE_TOKENS ou détection auto).'),
       },
+      outputSchema: GET_DESIGN_SYSTEM_RULES_OUTPUT,
+      annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
     },
     ({ tokensPath }) => {
       try {
@@ -78,6 +103,8 @@ export function createServer(): McpServer {
           .optional()
           .describe('`component` (défaut) ignore les règles RGAA de niveau page (titre h1, landmarks…).'),
       },
+      outputSchema: VALIDATE_COMPONENT_CODE_OUTPUT,
+      annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
     },
     async ({ code, framework, tokensPath, checkDrift, scope }) => {
       try {
@@ -94,6 +121,145 @@ export function createServer(): McpServer {
       }
     },
   );
+
+  server.registerTool(
+    'audit_project',
+    {
+      title: 'Auditer le projet complet (drift + RGAA)',
+      description:
+        'Lance l’audit AxaraAudit complet sur un répertoire projet : design drift contre les tokens DTCG + violations RGAA (axe-core), avec le score 0–100 et le verdict de gate — exactement le même calcul que `axaraaudit audit`. Réponse compacte (pires problèmes d’abord) ; rapport intégral via la resource axara://report/latest.',
+      inputSchema: AUDIT_PROJECT_INPUT,
+      outputSchema: AUDIT_PROJECT_OUTPUT,
+      annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
+    },
+    async (input) => {
+      try {
+        return jsonResult(await runAuditProject(input));
+      } catch (error) {
+        return errorResult(error);
+      }
+    },
+  );
+
+  server.registerTool(
+    'fix_drift',
+    {
+      title: 'Corriger le design drift (tokens)',
+      description:
+        'Applique les corrections mécaniques de design drift (valeurs exactement égales à un token → `var(--token)`, vérifiées position par position). Dry-run par défaut : rien n’est écrit sans `write: true`. Ne corrige jamais le RGAA (décision humaine).',
+      inputSchema: FIX_DRIFT_INPUT,
+      outputSchema: FIX_DRIFT_OUTPUT,
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: true,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
+    },
+    (input) => {
+      try {
+        return jsonResult(runFixDrift(input));
+      } catch (error) {
+        return errorResult(error);
+      }
+    },
+  );
+
+  server.registerTool(
+    'explain_rule',
+    {
+      title: 'Expliquer un critère RGAA',
+      description:
+        'Renvoie les métadonnées d’un critère RGAA 4.1 (thème, intitulé officiel, critères WCAG référencés) et les règles axe-core mappées dessus. Accepte aussi un numéro de thème (ex. "11") pour lister tous ses critères couverts.',
+      inputSchema: EXPLAIN_RULE_INPUT,
+      outputSchema: EXPLAIN_RULE_OUTPUT,
+      annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
+    },
+    (input) => {
+      try {
+        return jsonResult(runExplainRule(input));
+      } catch (error) {
+        return errorResult(error);
+      }
+    },
+  );
+
+  // ── Resources ──────────────────────────────────────────────────────────
+
+  server.registerResource(
+    'design-tokens',
+    'axara://design-tokens',
+    {
+      title: 'Design tokens (DTCG)',
+      description:
+        'Le document DTCG brut du projet — la source de vérité des couleurs et espacements.',
+      mimeType: 'application/json',
+    },
+    (uri) => {
+      const path = resolveTokensPath({});
+      if (path === null) {
+        throw new Error(
+          'Aucun fichier de tokens DTCG trouvé (design-tokens.dtcg.json, $A11YENGINE_TOKENS…).',
+        );
+      }
+      return {
+        contents: [
+          { uri: uri.href, mimeType: 'application/json', text: readFileSync(path, 'utf8') },
+        ],
+      };
+    },
+  );
+
+  server.registerResource(
+    'config',
+    'axara://config',
+    {
+      title: 'Configuration résolue (.auditorrc.json)',
+      description:
+        'La configuration AxaraAudit effective du répertoire courant, défauts inclus.',
+      mimeType: 'application/json',
+    },
+    (uri) => {
+      const loaded = loadRc(process.cwd());
+      return {
+        contents: [
+          {
+            uri: uri.href,
+            mimeType: 'application/json',
+            text: JSON.stringify(
+              { rcPath: loaded.rcPath, rootDir: loaded.rootDir, rc: loaded.rc },
+              null,
+              2,
+            ),
+          },
+        ],
+      };
+    },
+  );
+
+  server.registerResource(
+    'latest-report',
+    'axara://report/latest',
+    {
+      title: 'Dernier rapport d’audit complet',
+      description:
+        'Le payload intégral du dernier `audit_project` de cette session (toutes les violations, non tronquées).',
+      mimeType: 'application/json',
+    },
+    (uri) => {
+      const report = getLastReport();
+      if (report === null) {
+        throw new Error('Aucun audit dans cette session — appelle d’abord le tool audit_project.');
+      }
+      return {
+        contents: [
+          { uri: uri.href, mimeType: 'application/json', text: JSON.stringify(report, null, 2) },
+        ],
+      };
+    },
+  );
+
+  // ── Prompt ─────────────────────────────────────────────────────────────
 
   server.registerPrompt(
     'accessibility_engineer',

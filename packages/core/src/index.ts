@@ -76,6 +76,52 @@ export {
   type AuditOptions,
 } from './analyzer/audit.js';
 
+// Project-level orchestration (shared by the CLI and the MCP server)
+export {
+  RC_FILENAME,
+  ConfigError,
+  DEFAULT_RC,
+  mergeRc,
+  loadRc,
+  resolveRcTokensPath,
+  type RgaaConfig,
+  type CiConfig,
+  type ProConfig,
+  type AuditorRc,
+  type AuditorRcInput,
+  type LoadedRc,
+} from './project/rc.js';
+export { collectFiles } from './project/walk.js';
+export {
+  loadTokensSource,
+  type TokensSource,
+  type ScannedFile,
+} from './project/tokens-source.js';
+export {
+  computeScore,
+  evaluateGate,
+  type FileRgaaFinding,
+  type GateOptions,
+  type GateResult,
+} from './project/score.js';
+export {
+  PAYLOAD_VERSION,
+  aggregateRgaa,
+  buildAuditPayload,
+  type RgaaAggregate,
+  type AuditPayload,
+  type BuildAuditPayloadArgs,
+} from './project/payload.js';
+export {
+  auditProject,
+  fixProject,
+  type ResolvedTokensSource,
+  type ProjectAuditOptions,
+  type ProjectAuditResult,
+  type ProjectFixOptions,
+  type ProjectFixResult,
+} from './project/run.js';
+
 // Auto-fix (safe, position-based remediation)
 export {
   applyFixes,

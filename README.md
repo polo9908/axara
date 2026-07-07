@@ -403,14 +403,33 @@ Tokens automatically generate kebab-case CSS variables:
 
 ---
 
+## For AI agents (MCP)
+
+AxaraAudit ships a first-class [MCP server](packages/mcp-server/README.md) so
+coding agents (Claude Code, or any MCP client) can generate UI that is
+token-correct and RGAA-accessible *by construction*:
+
+```bash
+claude mcp add axara -- npx -y @axaraaudit/mcp-server
+```
+
+Five tools — `get_design_system_rules`, `validate_component_code`,
+`audit_project`, `fix_drift` (dry-run by default), `explain_rule` — plus
+resources (`axara://design-tokens`, `axara://config`, `axara://report/latest`).
+Every tool declares an output schema and read-only/destructive annotations, and
+runs the **same core pipeline as the CLI**: an agent and your CI always see the
+same score.
+
+---
+
 ## Monorepo packages
 
 | Package | Role |
 |---|---|
-| [`@axaraaudit/core`](packages/core/README.md) | Engine: DTCG parsing, AST analysis, RGAA/axe-core, auto-fix |
+| [`@axaraaudit/core`](packages/core/README.md) | Engine: DTCG parsing, AST analysis, RGAA/axe-core, auto-fix, project orchestration (audit/fix/score) |
 | [`@axaraaudit/cli`](packages/cli/README.md) | The `axaraaudit` CLI (what you use day to day) |
 | [`@axaraaudit/runtime`](packages/runtime/README.md) | Playwright: keyboard trap detection + Figma Variables sync |
-| [`@axaraaudit/mcp-server`](packages/mcp-server/README.md) | MCP server for Claude/LLM integration |
+| [`@axaraaudit/mcp-server`](packages/mcp-server/README.md) | MCP server for AI agents: project audit, component validation, safe auto-fix |
 
 ---
 
@@ -425,7 +444,7 @@ pnpm install
 # Build all packages
 pnpm -r build
 
-# Run tests (118 tests)
+# Run tests (163 tests)
 pnpm -r test
 
 # Strict typecheck

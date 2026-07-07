@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import type { AuditSummary, RgaaFinding } from '@axaraaudit/core';
+import type { AuditSummary } from '../analyzer/audit.js';
+import type { RgaaFinding } from '../rgaa/types.js';
 import { computeScore, evaluateGate, type FileRgaaFinding } from './score.js';
 
 const cleanDrift: AuditSummary = {

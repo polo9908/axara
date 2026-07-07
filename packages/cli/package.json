@@ -1,6 +1,6 @@
 {
   "name": "@axaraaudit/cli",
-  "version": "0.1.9",
+  "version": "0.2.0",
   "description": "Open-source CLI auditor: design-system drift + RGAA 4.1 conformity, with CI gatekeeper and optional Pro cloud gateway",
   "license": "MIT",
   "type": "module",

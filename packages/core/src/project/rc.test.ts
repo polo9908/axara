@@ -2,7 +2,7 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { ConfigError, DEFAULT_RC, loadRc, mergeRc, resolveTokensPath } from './rc.js';
+import { ConfigError, DEFAULT_RC, loadRc, mergeRc, resolveRcTokensPath } from './rc.js';
 
 let dir: string;
 
@@ -49,17 +49,17 @@ describe('loadRc', () => {
   });
 });
 
-describe('resolveTokensPath', () => {
+describe('resolveRcTokensPath', () => {
   it('throws a helpful error when the tokens file is absent', () => {
     const loaded = loadRc(dir);
-    expect(() => resolveTokensPath(loaded)).toThrow(/axaraaudit init/);
+    expect(() => resolveRcTokensPath(loaded)).toThrow(/axaraaudit init/);
   });
 
   it('resolves relative to the root dir', () => {
     writeFileSync(join(dir, 'tokens.json'), '{}');
     writeFileSync(join(dir, '.auditorrc.json'), JSON.stringify({ tokens: './tokens.json' }));
     const loaded = loadRc(dir);
-    expect(resolveTokensPath(loaded)).toBe(join(dir, 'tokens.json'));
+    expect(resolveRcTokensPath(loaded)).toBe(join(dir, 'tokens.json'));
   });
 });
 
