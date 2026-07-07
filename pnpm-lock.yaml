@@ -18,6 +18,12 @@ importers:
         specifier: ^2.1.4
         version: 2.1.9(@types/node@22.20.0)(jsdom@25.0.1)
 
+  packages/axaraaudit:
+    dependencies:
+      '@axaraaudit/cli':
+        specifier: workspace:*
+        version: link:../cli
+
   packages/cli:
     dependencies:
       '@axaraaudit/core':

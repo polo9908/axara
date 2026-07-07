@@ -1,0 +1,41 @@
+{
+  "name": "axaraaudit",
+  "version": "0.2.1",
+  "description": "AxaraAudit — alias de @axaraaudit/cli pour que `npx axaraaudit` fonctionne tel quel (audit design-system + RGAA 4.1)",
+  "license": "MIT",
+  "type": "module",
+  "keywords": [
+    "accessibility",
+    "a11y",
+    "rgaa",
+    "wcag",
+    "design-tokens",
+    "cli",
+    "audit"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/polo9908/axara.git",
+    "directory": "packages/axaraaudit"
+  },
+  "bin": {
+    "axaraaudit": "./bin.js"
+  },
+  "files": [
+    "bin.js"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "node -e \"\"",
+    "test": "node -e \"\"",
+    "typecheck": "node -e \"\""
+  },
+  "dependencies": {
+    "@axaraaudit/cli": "workspace:*"
+  }
+}
