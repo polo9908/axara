@@ -21,6 +21,7 @@ import {
   type SourceFile,
 } from '@axaraaudit/core';
 import { ConfigError, loadRc, type LoadedRc } from '../config/rc.js';
+import { tr } from '../i18n.js';
 import { loadTokensSource } from '../config/tokens-source.js';
 import { collectFiles } from '../scan/walk.js';
 import { computeScore } from '../report/score.js';
@@ -35,7 +36,12 @@ function git(args: readonly string[], cwd: string): string {
     return execFileSync('git', [...args], { cwd, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
   } catch (error) {
     const reason = error instanceof Error ? error.message : String(error);
-    throw new ConfigError(`Commande git en échec (${args[0]}) : ${reason.split('\n')[0]}`);
+    throw new ConfigError(
+      tr(
+        `Commande git en échec (${args[0]}) : ${reason.split('\n')[0]}`,
+        `git command failed (${args[0]}): ${reason.split('\n')[0]}`,
+      ),
+    );
   }
 }
 
@@ -43,7 +49,12 @@ function ensureGitRepo(cwd: string): void {
   try {
     execFileSync('git', ['rev-parse', '--is-inside-work-tree'], { cwd, stdio: 'pipe' });
   } catch {
-    throw new ConfigError('Ce dossier n’est pas un dépôt git — `history` et `blame` ont besoin de l’historique.');
+    throw new ConfigError(
+      tr(
+        'Ce dossier n’est pas un dépôt git — `history` et `blame` ont besoin de l’historique.',
+        'This folder is not a git repository — `history` and `blame` need the history.',
+      ),
+    );
   }
 }
 
@@ -112,7 +123,12 @@ export async function runHistory(argv: readonly string[]): Promise<number> {
   });
   const limit = values.limit === undefined ? 15 : Number(values.limit);
   if (Number.isNaN(limit) || limit < 2 || limit > 200) {
-    throw new ConfigError(`--limit doit être un nombre entre 2 et 200 (reçu: ${values.limit}).`);
+    throw new ConfigError(
+      tr(
+        `--limit doit être un nombre entre 2 et 200 (reçu: ${values.limit}).`,
+        `--limit must be a number between 2 and 200 (got: ${values.limit}).`,
+      ),
+    );
   }
 
   const cwd = process.cwd();
@@ -130,10 +146,19 @@ export async function runHistory(argv: readonly string[]): Promise<number> {
     .reverse(); // oldest → newest
 
   if (commits.length < 2) {
-    throw new ConfigError('Pas assez de commits pour tracer une évolution (minimum 2).');
+    throw new ConfigError(
+      tr(
+        'Pas assez de commits pour tracer une évolution (minimum 2).',
+        'Not enough commits to chart an evolution (minimum 2).',
+      ),
+    );
   }
 
-  process.stdout.write(`\n${bold('  📈 MACHINE À REMONTER LA DETTE')} ${dim(`(${commits.length} commits, score design)`)}\n\n`);
+  process.stdout.write(
+    `\n${bold(tr('  📈 MACHINE À REMONTER LA DETTE', '  📈 DEBT TIME MACHINE'))} ${dim(
+      tr(`(${commits.length} commits, score design)`, `(${commits.length} commits, design score)`),
+    )}\n\n`,
+  );
 
   const scores: (number | null)[] = [];
   for (const commit of commits) {
@@ -160,8 +185,8 @@ export async function runHistory(argv: readonly string[]): Promise<number> {
   }
   process.stdout.write('\n\n');
   printTips([
-    { cmd: 'axaraaudit blame', why: 'qui a introduit chaque dérive ? (git blame)' },
-    { cmd: 'axaraaudit fix --all --write', why: 'effacez l\'ardoise en une commande' },
+    { cmd: 'axaraaudit blame', why: tr('qui a introduit chaque dérive ? (git blame)', 'who introduced each drift? (git blame)') },
+    { cmd: 'axaraaudit fix --all --write', why: tr('effacez l\'ardoise en une commande', 'wipe the slate clean in one command') },
   ]);
   return 0;
 }
@@ -182,13 +207,13 @@ function blameLine(path: string, line: number, cwd: string): BlameInfo {
       { cwd, encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] },
     );
     const sha = raw.split('\n')[0]?.split(' ')[0] ?? '';
-    const author = /^author (.+)$/m.exec(raw)?.[1] ?? 'inconnu';
+    const author = /^author (.+)$/m.exec(raw)?.[1] ?? tr('inconnu', 'unknown');
     const time = /^author-time (\d+)$/m.exec(raw)?.[1];
     const date = time !== undefined ? new Date(Number(time) * 1000).toISOString().slice(0, 10) : '';
-    if (sha.startsWith('0000000')) return { author: '(non committé)', date: '', short: '' };
+    if (sha.startsWith('0000000')) return { author: tr('(non committé)', '(uncommitted)'), date: '', short: '' };
     return { author, date, short: sha.slice(0, 7) };
   } catch {
-    return { author: '(non committé)', date: '', short: '' };
+    return { author: tr('(non committé)', '(uncommitted)'), date: '', short: '' };
   }
 }
 
@@ -209,7 +234,14 @@ export async function runBlame(argv: readonly string[]): Promise<number> {
   const report = auditSources(tokensSource.json, files, { remBasePx: loaded.rc.remBasePx });
 
   if (report.issues.length === 0) {
-    process.stdout.write(green('\n  ✓ Aucune dérive — personne à blâmer aujourd’hui.\n\n'));
+    process.stdout.write(
+      green(
+        tr(
+          '\n  ✓ Aucune dérive — personne à blâmer aujourd’hui.\n\n',
+          '\n  ✓ No drift — nobody to blame today.\n\n',
+        ),
+      ),
+    );
     return 0;
   }
 
@@ -223,21 +255,28 @@ export async function runBlame(argv: readonly string[]): Promise<number> {
 
   const ranking = [...byAuthor.entries()].sort((a, b) => b[1].length - a[1].length);
 
-  process.stdout.write(`\n${bold('  🕵️ BLAME — qui a introduit les dérives ?')}\n\n`);
+  process.stdout.write(
+    `\n${bold(tr('  🕵️ BLAME — qui a introduit les dérives ?', '  🕵️ BLAME — who introduced the drifts?'))}\n\n`,
+  );
   ranking.forEach(([author, entries], rank) => {
     const medal = rank === 0 ? '🥇' : rank === 1 ? '🥈' : rank === 2 ? '🥉' : '  ';
-    process.stdout.write(`  ${medal} ${bold(author)} — ${entries.length} dérive(s)\n`);
+    process.stdout.write(
+      `  ${medal} ${bold(author)} — ${tr(`${entries.length} dérive(s)`, `${entries.length} drift(s)`)}\n`,
+    );
     for (const { issue, info } of entries.slice(0, 5)) {
       const where = `${relative(loaded.rootDir, issue.file)}:L${issue.line}`;
       const commit = info.short !== '' ? dim(` (${info.short}, ${info.date})`) : '';
       process.stdout.write(`     ${yellow('≈')} ${dim(where)}  ${issue.property}: ${issue.value}${commit}\n`);
     }
-    if (entries.length > 5) process.stdout.write(dim(`     … et ${entries.length - 5} autre(s)\n`));
+    if (entries.length > 5)
+      process.stdout.write(
+        dim(tr(`     … et ${entries.length - 5} autre(s)\n`, `     … and ${entries.length - 5} more\n`)),
+      );
   });
   process.stdout.write('\n');
   printTips([
-    { cmd: 'axaraaudit fix --all --write', why: 'sans rancune — efface l\'ardoise en une commande' },
-    { cmd: 'axaraaudit history', why: 'l\'évolution du score commit par commit' },
+    { cmd: 'axaraaudit fix --all --write', why: tr('sans rancune — efface l\'ardoise en une commande', 'no hard feelings — wipes the slate clean in one command') },
+    { cmd: 'axaraaudit history', why: tr('l\'évolution du score commit par commit', 'the score evolution commit by commit') },
   ]);
   return 0;
 }

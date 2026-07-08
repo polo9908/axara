@@ -25,10 +25,11 @@ Toujours builder avant de lancer le CLI (pas de ts-node/tsx).
 
 ## Conventions
 
-- Messages utilisateur du CLI **en français** ; code/commentaires bilingues (suivre le fichier).
+- Chaînes utilisateur **bilingues** via `tr('français', 'english')` — `cli/src/i18n.ts` (résolu à l'import : `--lang` > `AXARA_LANG` > locale Intl ; propage `AXARA_LANG` au moteur) et `core/src/i18n.ts` (résolution paresseuse par appel, pour les erreurs). Français toujours en premier argument. Jamais traduits : sortie machine (`--format json`), intitulés officiels RGAA. Code/commentaires bilingues (suivre le fichier).
 - CLI et core : **zéro dépendance runtime** (Node stdlib + `parseArgs`). Ne pas ajouter commander/chalk/etc.
 - Exit codes : 0 conforme, 1 gate/violations, 2 erreur de config.
-- Nouvelle commande CLI = 4 endroits : `src/commands/<nom>.ts`, switch de `src/index.ts`, `GROUPS` dans `src/commands/help.ts` (alimente aide + palette), tests vitest à côté du source (`*.test.ts`).
+- Nouvelle commande CLI = 4 endroits : `src/commands/<nom>.ts`, switch de `src/index.ts`, `GROUPS` dans `src/commands/help.ts` (alimente aide + palette + complétions), tests vitest à côté du source (`*.test.ts`).
+- Update-notifier : `src/ui/update-check.ts`, cache `~/.axaraaudit/update-check.json`, refresh via process détaché, désactivable `AXARA_NO_UPDATE_CHECK=1`. Jamais bloquant.
 
 ## Publication
 

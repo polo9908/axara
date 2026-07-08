@@ -19,6 +19,7 @@ import { loadRc, mergeRc, type AuditorRc, type AuditorRcInput, type LoadedRc } f
 import { buildAuditPayload, type AuditPayload } from './payload.js';
 import { computeScore, evaluateGate, type FileRgaaFinding, type GateResult } from './score.js';
 import { loadTokensSource, type TokensSource } from './tokens-source.js';
+import { tr } from '../i18n.js';
 import { collectFiles } from './walk.js';
 
 const JSX_EXT = new Set(['.tsx', '.jsx']);
@@ -31,6 +32,19 @@ const HTML_EXT = new Set(['.html', '.htm']);
 export interface ResolvedTokensSource {
   readonly origin: TokensSource['origin'] | 'inline' | 'none';
   readonly detail: string;
+  /** Set when origin === 'auto' — lets callers build a localized message. */
+  readonly count?: number;
+  readonly sourceFileCount?: number;
+}
+
+/** Propagate the zero-config counters when the source provides them. */
+function resolveSource(source: ResolvedTokensSource): ResolvedTokensSource {
+  return {
+    origin: source.origin,
+    detail: source.detail,
+    ...(source.count !== undefined ? { count: source.count } : {}),
+    ...(source.sourceFileCount !== undefined ? { sourceFileCount: source.sourceFileCount } : {}),
+  };
 }
 
 export interface ProjectAuditOptions {
@@ -84,11 +98,14 @@ export async function auditProject(options: ProjectAuditOptions): Promise<Projec
   let tokensSource: ResolvedTokensSource;
   if (options.inlineTokensJson !== undefined) {
     tokensJson = options.inlineTokensJson;
-    tokensSource = { origin: 'inline', detail: 'tokens fournis en mémoire (config distante)' };
+    tokensSource = {
+      origin: 'inline',
+      detail: tr('tokens fournis en mémoire (config distante)', 'tokens provided in memory (remote config)'),
+    };
   } else {
     const source = loadTokensSource(loaded, options.tokensPath, files);
     tokensJson = source.json;
-    tokensSource = { origin: source.origin, detail: source.detail };
+    tokensSource = resolveSource(source);
   }
 
   const drift = auditSources(tokensJson, files, { remBasePx: rc.remBasePx });
@@ -214,7 +231,7 @@ export function fixProject(options: ProjectFixOptions): ProjectFixResult {
 
   return {
     loaded,
-    tokensSource: { origin: source.origin, detail: source.detail },
+    tokensSource: resolveSource(source),
     report,
     files: filePaths,
     fixed,
@@ -287,7 +304,10 @@ export async function checkFiles(options: ProjectCheckOptions): Promise<ProjectC
       source = {
         json: '{}',
         origin: 'none',
-        detail: 'aucun design system détecté — validation RGAA uniquement',
+        detail: tr(
+          'aucun design system détecté — validation RGAA uniquement',
+          'no design system detected — RGAA-only validation',
+        ),
       };
     }
   }
@@ -339,7 +359,7 @@ export async function checkFiles(options: ProjectCheckOptions): Promise<ProjectC
 
   return {
     loaded,
-    tokensSource: { origin: source.origin, detail: source.detail },
+    tokensSource: resolveSource(source),
     files: results,
     summary: {
       filesChecked: results.filter((r) => !r.skipped).length,

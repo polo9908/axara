@@ -11,6 +11,7 @@
 
 import { boldOn, paintFg, reset, stdoutLevel, type ColorLevel } from './ansi.js';
 import { BRAND } from './theme.js';
+import { tr } from '../i18n.js';
 
 export interface Tip {
   /** Commande prête à copier, ex. `axaraaudit fix --write`. */
@@ -40,7 +41,7 @@ export function renderTips(tips: readonly Tip[], level: ColorLevel = stdoutLevel
   const b = (t: string): string => (level === 'none' ? t : `${boldOn(level)}${t}${reset(level)}`);
   const cmdWidth = Math.max(...tips.map((t) => t.cmd.length));
   const lines: string[] = [];
-  lines.push(`  ${paintFg('✦', BRAND.violet, level)} ${b('ET MAINTENANT ?')}`);
+  lines.push(`  ${paintFg('✦', BRAND.violet, level)} ${b(tr('ET MAINTENANT ?', 'WHAT NEXT?'))}`);
   for (const tip of tips) {
     const cmd = paintFg(tip.cmd.padEnd(cmdWidth), BRAND.cyan, level);
     lines.push(`    ${paintFg('▸', BRAND.pink, level)} ${cmd}  ${paintFg(tip.why, BRAND.slate, level)}`);

@@ -9,6 +9,7 @@
 
 import { boldOn, cursor, gradient, paintFg, reset, stdoutLevel, type ColorLevel } from './ansi.js';
 import { BRAND } from './theme.js';
+import { tr } from '../i18n.js';
 import { GROUPS, type CommandSpec } from '../commands/help.js';
 
 const ALL: readonly CommandSpec[] = GROUPS.flatMap((g) => g.commands);
@@ -35,21 +36,32 @@ export function paletteAvailable(): boolean {
   );
 }
 
+export interface PaletteOptions {
+  /** Commande sélectionnée à l'ouverture (ex. 'audit' sur projet configuré). */
+  readonly preselect?: string;
+  /** Ligne de contexte affichée sous l'en-tête. */
+  readonly hint?: string;
+}
+
 function render(
   query: string,
   matches: readonly CommandSpec[],
   selected: number,
   level: ColorLevel,
+  hint?: string,
 ): string {
   const b = (t: string): string => (level === 'none' ? t : `${boldOn(level)}${t}${reset(level)}`);
   const lines: string[] = [];
   lines.push(
-    `  ${gradient('axaraaudit', BRAND.violet, BRAND.cyan, level)} ${paintFg('— tapez pour filtrer · ↑↓ naviguer · Tab compléter · Entrée exécuter · Échap quitter', BRAND.slate, level)}`,
+    `  ${gradient('axaraaudit', BRAND.violet, BRAND.cyan, level)} ${paintFg(tr('— tapez pour filtrer · ↑↓ naviguer · Tab compléter · Entrée exécuter · Échap quitter', '— type to filter · ↑↓ navigate · Tab complete · Enter run · Esc quit'), BRAND.slate, level)}`,
   );
+  if (hint !== undefined) {
+    lines.push(`  ${paintFg('✦', BRAND.violet, level)} ${paintFg(hint, BRAND.slate, level)}`);
+  }
   const caret = level === 'none' ? '_' : `${boldOn(level)}▌${reset(level)}`;
   lines.push(`  ${paintFg('❯', BRAND.pink, level)} ${b(`/${query}`)}${caret}`);
   if (matches.length === 0) {
-    lines.push(`    ${paintFg('(aucune commande ne correspond)', BRAND.slate, level)}`);
+    lines.push(`    ${paintFg(tr('(aucune commande ne correspond)', '(no command matches)'), BRAND.slate, level)}`);
   }
   matches.forEach((cmd, i) => {
     const active = i === selected;
@@ -65,17 +77,21 @@ function render(
  * Ouvre la palette et retourne le nom de la commande choisie, ou null
  * (Échap / Ctrl-C). `initialQuery` pré-remplit le filtre (`axaraaudit /aud`).
  */
-export function runPalette(initialQuery = ''): Promise<string | null> {
+export function runPalette(initialQuery = '', opts: PaletteOptions = {}): Promise<string | null> {
   const level = stdoutLevel;
   const stdin = process.stdin;
   let query = initialQuery.replace(/^\//, '');
   let selected = 0;
+  if (opts.preselect !== undefined) {
+    const at = filterCommands(query).findIndex((c) => c.name === opts.preselect);
+    if (at >= 0) selected = at;
+  }
   let renderedLines = 0;
 
   const draw = (): void => {
     const matches = filterCommands(query);
     if (selected >= matches.length) selected = Math.max(0, matches.length - 1);
-    const frame = render(query, matches, selected, level);
+    const frame = render(query, matches, selected, level, opts.hint);
     const erase =
       renderedLines > 0 ? `${cursor.up(renderedLines)}${cursor.toColumn0}${cursor.eraseDown}` : '';
     process.stdout.write(`${erase}${frame}`);

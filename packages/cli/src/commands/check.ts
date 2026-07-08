@@ -12,6 +12,7 @@
 import { parseArgs } from 'node:util';
 import { checkFiles, type DriftIssue, type RgaaFinding } from '@axaraaudit/core';
 import { ConfigError } from '../config/rc.js';
+import { tr } from '../i18n.js';
 import { bold, cyan, dim, green, red, yellow } from '../report/render.js';
 import { printTips, type Tip } from '../ui/tips.js';
 
@@ -36,7 +37,12 @@ export function parseCheckFlags(argv: readonly string[]): CheckFlags {
   });
 
   if (positionals.length === 0) {
-    throw new ConfigError('check attend au moins un fichier : axaraaudit check src/App.tsx');
+    throw new ConfigError(
+      tr(
+        'check attend au moins un fichier : axaraaudit check src/App.tsx',
+        'check expects at least one file: axaraaudit check src/App.tsx',
+      ),
+    );
   }
 
   return {
@@ -135,10 +141,19 @@ export async function runCheck(argv: readonly string[]): Promise<number> {
   const out = (text: string): void => {
     process.stdout.write(text);
   };
-  out(`\n${bold(`  CHECK — ${result.summary.filesChecked} fichier(s)`)}\n\n`);
+  out(
+    `\n${bold(tr(`  CHECK — ${result.summary.filesChecked} fichier(s)`, `  CHECK — ${result.summary.filesChecked} file(s)`))}\n\n`,
+  );
   for (const file of result.files) {
     if (file.skipped) {
-      out(`  ${dim(`${file.file} (ignoré : extension non analysée ou fichier absent)`)}\n`);
+      out(
+        `  ${dim(
+          tr(
+            `${file.file} (ignoré : extension non analysée ou fichier absent)`,
+            `${file.file} (skipped: extension not analyzed or file missing)`,
+          ),
+        )}\n`,
+      );
       continue;
     }
     const clean = file.drift.length === 0 && file.rgaa.length === 0;
@@ -146,7 +161,7 @@ export async function runCheck(argv: readonly string[]): Promise<number> {
     for (const finding of file.rgaa) {
       const mark = finding.status === 'failed' ? red('✖') : yellow('?');
       out(
-        `    ${mark} RGAA ${finding.criterion} — ${finding.criterionTitle} ${dim(`(${finding.impact ?? 'impact inconnu'})`)}\n`,
+        `    ${mark} RGAA ${finding.criterion} — ${finding.criterionTitle} ${dim(`(${finding.impact ?? tr('impact inconnu', 'unknown impact')})`)}\n`,
       );
     }
     for (const issue of file.drift) {
@@ -158,26 +173,44 @@ export async function runCheck(argv: readonly string[]): Promise<number> {
 
   out('\n');
   if (result.conformant) {
-    out(green('  ✓ Conforme — aucun drift, aucune violation RGAA bloquante.\n\n'));
+    out(
+      green(
+        tr(
+          '  ✓ Conforme — aucun drift, aucune violation RGAA bloquante.\n\n',
+          '  ✓ Conformant — no drift, no blocking RGAA violation.\n\n',
+        ),
+      ),
+    );
     return 0;
   }
   const { driftIssues, rgaaFailed, rgaaToReview } = result.summary;
   out(
     red(
-      `  ✖ ${rgaaFailed} violation(s) RGAA, ${driftIssues} drift(s)` +
-        (rgaaToReview > 0 ? `, ${rgaaToReview} à vérifier manuellement` : '') +
+      tr(`  ✖ ${rgaaFailed} violation(s) RGAA, ${driftIssues} drift(s)`, `  ✖ ${rgaaFailed} RGAA violation(s), ${driftIssues} drift(s)`) +
+        (rgaaToReview > 0
+          ? tr(`, ${rgaaToReview} à vérifier manuellement`, `, ${rgaaToReview} to review manually`)
+          : '') +
         '\n',
     ),
   );
   out('\n');
   const tips: Tip[] = [];
   if (driftIssues > 0) {
-    tips.push({ cmd: 'axaraaudit fix --write', why: 'corrige le drift (remplacements de tokens sûrs)' });
+    tips.push({
+      cmd: 'axaraaudit fix --write',
+      why: tr(
+        'corrige le drift (remplacements de tokens sûrs)',
+        'fixes the drift (safe token replacements)',
+      ),
+    });
   }
   if (rgaaFailed > 0) {
     tips.push({
       cmd: 'axaraaudit fix --ai --write',
-      why: 'le RGAA demande une correction dans le code — Claude peut la proposer',
+      why: tr(
+        'le RGAA demande une correction dans le code — Claude peut la proposer',
+        'RGAA requires a code fix — Claude can propose one',
+      ),
     });
   }
   printTips(tips);

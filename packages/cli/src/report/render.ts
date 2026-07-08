@@ -8,6 +8,7 @@ import type { DriftIssue } from '@axaraaudit/core';
 import type { AuditPayload } from './payload.js';
 import { gradient, stdoutLevel } from '../ui/ansi.js';
 import { BRAND } from '../ui/theme.js';
+import { tr } from '../i18n.js';
 
 const useColor = process.stdout.isTTY === true && process.env['NO_COLOR'] === undefined;
 const ESC = String.fromCharCode(27);
@@ -36,7 +37,7 @@ function renderDriftIssue(issue: DriftIssue): string {
   const target =
     issue.suggestion !== undefined
       ? ` → ${green(issue.suggestion.replacement)}`
-      : ` ${dim('(aucun token proche)')}`;
+      : ` ${dim(tr('(aucun token proche)', '(no nearby token)'))}`;
   const badge = issue.autoFixable ? green(' [auto-fix]') : '';
   return `    ${pos}  ${dim(issue.property)}  ${value}${target}${badge}`;
 }
@@ -58,7 +59,10 @@ export function renderPretty(
   );
   lines.push(
     dim(
-      `  ${payload.generatedAt} · ${payload.drift.summary.filesScanned} fichier(s) analysé(s)`,
+      `  ${payload.generatedAt} · ${tr(
+        `${payload.drift.summary.filesScanned} fichier(s) analysé(s)`,
+        `${payload.drift.summary.filesScanned} file(s) scanned`,
+      )}`,
     ),
   );
   lines.push(RULE);
@@ -66,7 +70,7 @@ export function renderPretty(
   // — Design drift —
   lines.push(bold('  DESIGN SYSTEM'));
   if (payload.drift.issues.length === 0) {
-    lines.push(green('    ✓ Aucune dérive détectée'));
+    lines.push(green(`    ✓ ${tr('Aucune dérive détectée', 'No drift detected')}`));
   } else {
     const byFile = new Map<string, DriftIssue[]>();
     for (const issue of payload.drift.issues) {
@@ -81,7 +85,10 @@ export function renderPretty(
     const s = payload.drift.summary;
     lines.push(
       dim(
-        `    ${s.totalIssues} dérive(s) — ${s.errors} erreur(s), ${s.warnings} avertissement(s), ${s.autoFixable} auto-fixable(s)`,
+        `    ${tr(
+          `${s.totalIssues} dérive(s) — ${s.errors} erreur(s), ${s.warnings} avertissement(s), ${s.autoFixable} auto-fixable(s)`,
+          `${s.totalIssues} drift(s) — ${s.errors} error(s), ${s.warnings} warning(s), ${s.autoFixable} auto-fixable`,
+        )}`,
       ),
     );
   }
@@ -90,26 +97,34 @@ export function renderPretty(
   lines.push(RULE);
   lines.push(bold('  RGAA 4.1'));
   if (!payload.rgaa.enabled) {
-    lines.push(dim('    (désactivé)'));
+    lines.push(dim(`    ${tr('(désactivé)', '(disabled)')}`));
   } else if (payload.rgaa.findings.length === 0) {
-    lines.push(green('    ✓ Aucune non-conformité détectée automatiquement'));
+    lines.push(
+      green(
+        `    ✓ ${tr('Aucune non-conformité détectée automatiquement', 'No non-conformity detected automatically')}`,
+      ),
+    );
   } else {
     for (const finding of payload.rgaa.findings) {
       const mark = finding.status === 'failed' ? red('✖') : yellow('?');
-      const impact = finding.impact === null ? 'à qualifier' : finding.impact;
+      const impact = finding.impact === null ? tr('à qualifier', 'to be assessed') : finding.impact;
       lines.push(
         `    ${mark} ${bold(finding.criterion)} ${finding.criterionTitle} ${dim(`(${impact})`)}`,
       );
       lines.push(
         dim(
           `       ${relPath(rootDir, finding.file)} · ${finding.occurrences.length} occurrence(s)`,
+          // « occurrence(s) » est identique dans les deux langues.
         ),
       );
     }
     const agg = payload.rgaa.aggregate;
     lines.push(
       dim(
-        `    ${agg.criteriaFailed} critère(s) non conforme(s), ${agg.criteriaToReview} à vérifier manuellement`,
+        `    ${tr(
+          `${agg.criteriaFailed} critère(s) non conforme(s), ${agg.criteriaToReview} à vérifier manuellement`,
+          `${agg.criteriaFailed} non-conformant criteria, ${agg.criteriaToReview} to review manually`,
+        )}`,
       ),
     );
   }

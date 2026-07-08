@@ -11,6 +11,7 @@ import { boldOn, gradientBlock, paintFg, reset } from './ansi.js';
 import { mascotLines, type Mood } from './mascot.js';
 import { BRAND } from './theme.js';
 import { CLI_NAME, CLI_VERSION } from '../version.js';
+import { tr } from '../i18n.js';
 
 const WORDMARK: readonly string[] = [
   ' █████╗ ██╗  ██╗ █████╗ ██████╗  █████╗ ',
@@ -21,7 +22,10 @@ const WORDMARK: readonly string[] = [
   '╚═╝  ╚═╝╚═╝  ╚═╝╚═╝  ╚═╝╚═╝  ╚═╝╚═╝  ╚═╝',
 ];
 
-const TAGLINE = 'design-system + RGAA 4.1 — l’accessibilité, dès le terminal';
+const TAGLINE = tr(
+  'design-system + RGAA 4.1 — l’accessibilité, dès le terminal',
+  'design-system + RGAA 4.1 — accessibility, right from the terminal',
+);
 
 export function renderBanner(level: ColorLevel, mood: Mood = 'idle'): string {
   if (level === 'none') {

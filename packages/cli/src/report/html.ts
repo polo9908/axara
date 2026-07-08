@@ -11,6 +11,7 @@
 import type { DriftIssue } from '@axaraaudit/core';
 import type { AuditPayload } from './payload.js';
 import { CLI_NAME } from '../version.js';
+import { tr } from '../i18n.js';
 
 function esc(value: string): string {
   return value
@@ -29,11 +30,11 @@ function swatch(issue: DriftIssue): string {
 }
 
 const IMPACT_LABELS: Record<string, string> = {
-  critical: 'critique',
-  serious: 'sérieux',
-  moderate: 'modéré',
-  minor: 'mineur',
-  unknown: 'à qualifier',
+  critical: tr('critique', 'critical'),
+  serious: tr('sérieux', 'serious'),
+  moderate: tr('modéré', 'moderate'),
+  minor: tr('mineur', 'minor'),
+  unknown: tr('à qualifier', 'to be assessed'),
 };
 
 function scoreTone(score: number, failUnder: number): 'ok' | 'warn' | 'ko' {
@@ -48,7 +49,7 @@ export function renderHtml(payload: AuditPayload): string {
   const tone = scoreTone(payload.score, payload.gate.failUnder);
   const gatePassed = payload.gate.passed;
   const date = new Date(payload.generatedAt);
-  const dateLabel = date.toLocaleDateString('fr-FR', {
+  const dateLabel = date.toLocaleDateString(tr('fr-FR', 'en-GB'), {
     day: 'numeric',
     month: 'long',
     year: 'numeric',
@@ -74,14 +75,14 @@ export function renderHtml(payload: AuditPayload): string {
   <td class="mono target">${
     suggestion !== undefined
       ? `→ ${esc(suggestion.replacement)}`
-      : '<span class="none">aucun token proche</span>'
+      : `<span class="none">${tr('aucun token proche', 'no nearby token')}</span>`
   }</td>
   <td>${
     issue.autoFixable
       ? '<span class="badge fix">auto-fix</span>'
       : issue.match === 'nearest-token'
-        ? '<span class="badge near">proche</span>'
-        : '<span class="badge manual">manuel</span>'
+        ? `<span class="badge near">${tr('proche', 'near')}</span>`
+        : `<span class="badge manual">${tr('manuel', 'manual')}</span>`
   }</td>
 </tr>`;
         })
@@ -89,7 +90,7 @@ export function renderHtml(payload: AuditPayload): string {
       return `<details class="file" open>
 <summary><span class="mono">${esc(file)}</span><span class="count">${issues.length}</span></summary>
 <table>
-<thead><tr><th scope="col">Ligne</th><th scope="col">Propriété</th><th scope="col">Valeur</th><th scope="col">Suggestion</th><th scope="col">Statut</th></tr></thead>
+<thead><tr><th scope="col">${tr('Ligne', 'Line')}</th><th scope="col">${tr('Propriété', 'Property')}</th><th scope="col">${tr('Valeur', 'Value')}</th><th scope="col">Suggestion</th><th scope="col">${tr('Statut', 'Status')}</th></tr></thead>
 <tbody>${rows}</tbody>
 </table>
 </details>`;
@@ -107,7 +108,7 @@ export function renderHtml(payload: AuditPayload): string {
     <span class="impact impact-${esc(impact)}">${esc(IMPACT_LABELS[impact] ?? impact)}</span>
   </header>
   <h4>${esc(finding.criterionTitle)}</h4>
-  <p class="meta mono">${esc(finding.file)} · ${finding.occurrences.length} occurrence(s) · règle axe « ${esc(finding.axeRuleId)} »</p>
+  <p class="meta mono">${esc(finding.file)} · ${finding.occurrences.length} occurrence(s) · ${tr(`règle axe « ${esc(finding.axeRuleId)} »`, `axe rule "${esc(finding.axeRuleId)}"`)}</p>
   ${occ !== undefined ? `<pre><code>${esc(occ.html)}</code></pre>` : ''}
   ${occ !== undefined && occ.failureSummary !== '' ? `<p class="why">${esc(occ.failureSummary)}</p>` : ''}
 </article>`;
@@ -118,11 +119,11 @@ export function renderHtml(payload: AuditPayload): string {
   const dashOffset = circumference * (1 - payload.score / 100);
 
   return `<!DOCTYPE html>
-<html lang="fr">
+<html lang="${tr('fr', 'en')}">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Rapport d'audit — ${esc(payload.project)} — ${payload.score}/100</title>
+<title>${tr("Rapport d'audit", 'Audit report')} — ${esc(payload.project)} — ${payload.score}/100</title>
 <style>
 :root{
   --paper:#F4F2EC; --paper-2:#ECE9E0; --ink:#1D2430; --ink-2:#4C5563;
@@ -228,21 +229,21 @@ footer{margin-top:64px;border-top:3px double var(--ink);padding-top:14px;display
 <main>
   <header class="letterhead">
     <div>
-      <div class="brand">AxaraAudit · Rapport d'audit</div>
-      <h1>${esc(payload.project)} — <em>conformité design &amp; accessibilité</em></h1>
+      <div class="brand">AxaraAudit · ${tr("Rapport d'audit", 'Audit report')}</div>
+      <h1>${esc(payload.project)} — <em>${tr('conformité design &amp; accessibilité', 'design &amp; accessibility compliance')}</em></h1>
     </div>
   </header>
 
   <dl class="meta-grid">
     <div><dt>Date</dt><dd>${esc(dateLabel)}</dd></div>
-    <div><dt>Fichiers analysés</dt><dd class="mono">${s.filesScanned}</dd></div>
-    <div><dt>Référentiel</dt><dd>RGAA 4.1 · WCAG 2.1</dd></div>
-    <div><dt>Moteur</dt><dd class="mono">${esc(payload.tool)} v${esc(payload.toolVersion)}</dd></div>
+    <div><dt>${tr('Fichiers analysés', 'Files scanned')}</dt><dd class="mono">${s.filesScanned}</dd></div>
+    <div><dt>${tr('Référentiel', 'Standard')}</dt><dd>RGAA 4.1 · WCAG 2.1</dd></div>
+    <div><dt>${tr('Moteur', 'Engine')}</dt><dd class="mono">${esc(payload.tool)} v${esc(payload.toolVersion)}</dd></div>
   </dl>
 
   <section class="hero" aria-labelledby="score-title">
-    <h2 id="score-title" class="visually-hidden">Score de conformité</h2>
-    <div class="gauge tone-${tone}" role="img" aria-label="Score de conformité : ${payload.score} sur 100">
+    <h2 id="score-title" class="visually-hidden">${tr('Score de conformité', 'Compliance score')}</h2>
+    <div class="gauge tone-${tone}" role="img" aria-label="${tr(`Score de conformité : ${payload.score} sur 100`, `Compliance score: ${payload.score} out of 100`)}">
       <svg width="180" height="180" viewBox="0 0 180 180" aria-hidden="true">
         <circle class="track" cx="90" cy="90" r="54" pathLength="${circumference.toFixed(0)}"/>
         <circle class="arc" cx="90" cy="90" r="54"/>
@@ -252,62 +253,65 @@ footer{margin-top:64px;border-top:3px double var(--ink);padding-top:14px;display
     <div class="verdict">
       ${
         payload.gate.evaluated
-          ? `<span class="stamp ${gatePassed ? 'ok' : 'ko'}">${gatePassed ? 'Seuil atteint' : 'Seuil non atteint'}</span>
-             <p>Seuil requis : <strong class="mono">${payload.gate.failUnder}/100</strong>.</p>
+          ? `<span class="stamp ${gatePassed ? 'ok' : 'ko'}">${gatePassed ? tr('Seuil atteint', 'Threshold met') : tr('Seuil non atteint', 'Threshold not met')}</span>
+             <p>${tr('Seuil requis :', 'Required threshold:')} <strong class="mono">${payload.gate.failUnder}/100</strong>.</p>
              ${gatePassed ? '' : `<ul class="reasons">${payload.gate.reasons.map((r) => `<li>${esc(r)}</li>`).join('')}</ul>`}`
-          : `<span class="stamp ${tone === 'ok' ? 'ok' : 'ko'}">${tone === 'ok' ? 'Conforme au seuil' : 'À corriger'}</span>
-             <p>Audit informatif (gate CI non évalué). Seuil de référence : <strong class="mono">${payload.gate.failUnder}/100</strong>.</p>`
+          : `<span class="stamp ${tone === 'ok' ? 'ok' : 'ko'}">${tone === 'ok' ? tr('Conforme au seuil', 'Meets the threshold') : tr('À corriger', 'Needs fixing')}</span>
+             <p>${tr('Audit informatif (gate CI non évalué). Seuil de référence :', 'Informational audit (CI gate not evaluated). Reference threshold:')} <strong class="mono">${payload.gate.failUnder}/100</strong>.</p>`
       }
-      <p>Ce score automatique est un signal d'ingénierie — la conformité légale RGAA exige un audit manuel complémentaire.</p>
+      <p>${tr(
+        "Ce score automatique est un signal d'ingénierie — la conformité légale RGAA exige un audit manuel complémentaire.",
+        'This automated score is an engineering signal — legal RGAA compliance requires a complementary manual audit.',
+      )}</p>
     </div>
   </section>
 
   <div class="cards">
-    <div class="card"><b>${s.totalIssues}</b><span>dérives design</span></div>
-    <div class="card"><b>${s.autoFixable}</b><span>corrigeables auto</span></div>
-    <div class="card"><b>${agg.criteriaFailed}</b><span>critères RGAA non conformes</span></div>
-    <div class="card"><b>${agg.totalFindings}</b><span>constats d'accessibilité</span></div>
+    <div class="card"><b>${s.totalIssues}</b><span>${tr('dérives design', 'design drifts')}</span></div>
+    <div class="card"><b>${s.autoFixable}</b><span>${tr('corrigeables auto', 'auto-fixable')}</span></div>
+    <div class="card"><b>${agg.criteriaFailed}</b><span>${tr('critères RGAA non conformes', 'non-conformant RGAA criteria')}</span></div>
+    <div class="card"><b>${agg.totalFindings}</b><span>${tr("constats d'accessibilité", 'accessibility findings')}</span></div>
   </div>
 
   <section aria-labelledby="drift-title">
-    <h2 id="drift-title">I. Système de design <span class="mono">${s.totalIssues} dérive(s)</span></h2>
+    <h2 id="drift-title">${tr('I. Système de design', 'I. Design system')} <span class="mono">${tr(`${s.totalIssues} dérive(s)`, `${s.totalIssues} drift(s)`)}</span></h2>
     ${
       payload.drift.issues.length === 0
-        ? '<p class="empty">Aucune dérive détectée — toutes les valeurs utilisent les tokens.</p>'
-        : `<div class="toolbar" role="group" aria-label="Filtres des dérives">
-      <button type="button" data-filter="all" aria-pressed="true">Tout</button>
-      <button type="button" data-filter="error" aria-pressed="false">Erreurs</button>
-      <button type="button" data-filter="warning" aria-pressed="false">Avertissements</button>
-      <button type="button" data-filter="autofix" aria-pressed="false">Auto-fixables</button>
-      <label><span class="visually-hidden">Rechercher dans les dérives</span>
-        <input type="search" id="drift-search" placeholder="Rechercher… (fichier, valeur, token)">
+        ? `<p class="empty">${tr('Aucune dérive détectée — toutes les valeurs utilisent les tokens.', 'No drift detected — every value uses the tokens.')}</p>`
+        : `<div class="toolbar" role="group" aria-label="${tr('Filtres des dérives', 'Drift filters')}">
+      <button type="button" data-filter="all" aria-pressed="true">${tr('Tout', 'All')}</button>
+      <button type="button" data-filter="error" aria-pressed="false">${tr('Erreurs', 'Errors')}</button>
+      <button type="button" data-filter="warning" aria-pressed="false">${tr('Avertissements', 'Warnings')}</button>
+      <button type="button" data-filter="autofix" aria-pressed="false">${tr('Auto-fixables', 'Auto-fixable')}</button>
+      <label><span class="visually-hidden">${tr('Rechercher dans les dérives', 'Search within drifts')}</span>
+        <input type="search" id="drift-search" placeholder="${tr('Rechercher… (fichier, valeur, token)', 'Search… (file, value, token)')}">
       </label>
       <span class="shown" id="drift-shown" aria-live="polite"></span>
     </div>
     <div id="drift-list">${driftFiles}</div>
-    <div class="hint">Réparer : <code>npx axaraaudit fix --write</code> (sûr) · <code>--all</code> (valeurs proches) · <code>--ai</code> (RGAA &amp; reste, via Claude)</div>`
+    <div class="hint">${tr('Réparer :', 'To fix:')} <code>npx axaraaudit fix --write</code> ${tr('(sûr)', '(safe)')} · <code>--all</code> ${tr('(valeurs proches)', '(nearby values)')} · <code>--ai</code> ${tr('(RGAA &amp; reste, via Claude)', '(RGAA &amp; the rest, via Claude)')}</div>`
     }
   </section>
 
   <section aria-labelledby="rgaa-title">
-    <h2 id="rgaa-title">II. Accessibilité RGAA <span class="mono">${agg.criteriaFailed} critère(s) NC</span></h2>
+    <h2 id="rgaa-title">${tr('II. Accessibilité RGAA', 'II. RGAA accessibility')} <span class="mono">${tr(`${agg.criteriaFailed} critère(s) NC`, `${agg.criteriaFailed} failed criteria`)}</span></h2>
     ${
       !payload.rgaa.enabled
-        ? '<p class="empty">Analyse RGAA désactivée pour cet audit.</p>'
+        ? `<p class="empty">${tr('Analyse RGAA désactivée pour cet audit.', 'RGAA analysis disabled for this audit.')}</p>`
         : payload.rgaa.findings.length === 0
-          ? '<p class="empty">Aucune non-conformité détectée automatiquement.</p>'
-          : `<div class="toolbar" role="group" aria-label="Filtres RGAA">
-      <button type="button" data-impact="all" aria-pressed="true">Tous impacts</button>
-      <button type="button" data-impact="critical" aria-pressed="false">Critique</button>
-      <button type="button" data-impact="serious" aria-pressed="false">Sérieux</button>
-      <button type="button" data-impact="moderate" aria-pressed="false">Modéré</button>
+          ? `<p class="empty">${tr('Aucune non-conformité détectée automatiquement.', 'No non-conformity detected automatically.')}</p>`
+          : `<div class="toolbar" role="group" aria-label="${tr('Filtres RGAA', 'RGAA filters')}">
+      <button type="button" data-impact="all" aria-pressed="true">${tr('Tous impacts', 'All impacts')}</button>
+      <button type="button" data-impact="critical" aria-pressed="false">${tr('Critique', 'Critical')}</button>
+      <button type="button" data-impact="serious" aria-pressed="false">${tr('Sérieux', 'Serious')}</button>
+      <button type="button" data-impact="moderate" aria-pressed="false">${tr('Modéré', 'Moderate')}</button>
     </div>
     <div id="rgaa-list">${rgaaCards}</div>`
     }
   </section>
 
   <footer>
-    <span>Généré par ${esc(CLI_NAME)} — audit statique + axe-core</span>
+    <span>${tr(`Généré par ${esc(CLI_NAME)} — audit statique + axe-core`, `Generated by ${esc(CLI_NAME)} — static audit + axe-core`)}</span>
     <span>${esc(payload.generatedAt)}</span>
   </footer>
 </main>
@@ -330,7 +334,7 @@ footer{margin-top:64px;border-top:3px double var(--ink);padding-top:14px;display
       var any=[].slice.call(d.querySelectorAll('.drift-row')).some(function(r){return !r.hidden});
       d.hidden=!any;
     });
-    if(shown)shown.textContent=visible+' visible(s)';
+    if(shown)shown.textContent=visible+' ${tr('visible(s)', 'shown')}';
   }
   document.querySelectorAll('[data-filter]').forEach(function(btn){
     btn.addEventListener('click',function(){

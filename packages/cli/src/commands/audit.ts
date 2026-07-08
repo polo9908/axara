@@ -12,6 +12,7 @@ import { parseArgs } from 'node:util';
 import { auditProject } from '@axaraaudit/core';
 import { loadRc, mergeRc, ConfigError } from '../config/rc.js';
 import { resolveToken } from '../config/credentials.js';
+import { tr } from '../i18n.js';
 import { fetchRemoteConfig, uploadReport, ApiError } from '../services/api.js';
 import { renderHtml } from '../report/html.js';
 import { renderPretty, dim, green, yellow } from '../report/render.js';
@@ -56,7 +57,12 @@ export function parseAuditFlags(argv: readonly string[]): AuditFlags {
   const failUnderRaw = values['fail-under'];
   const failUnder = failUnderRaw === undefined ? undefined : Number(failUnderRaw);
   if (failUnder !== undefined && (Number.isNaN(failUnder) || failUnder < 0 || failUnder > 100)) {
-    throw new ConfigError(`--fail-under doit être un nombre entre 0 et 100 (reçu: ${failUnderRaw}).`);
+    throw new ConfigError(
+      tr(
+        `--fail-under doit être un nombre entre 0 et 100 (reçu: ${failUnderRaw}).`,
+        `--fail-under must be a number between 0 and 100 (got: ${failUnderRaw}).`,
+      ),
+    );
   }
 
   return {
@@ -95,11 +101,22 @@ export async function runAudit(argv: readonly string[]): Promise<number> {
     if (token === null) {
       if (flags.remote) {
         throw new ConfigError(
-          'La synchronisation distante (--remote) nécessite un jeton Pro. ' +
-            'Définissez AUDITOR_TOKEN ou lancez `axaraaudit login --token <jeton>`.',
+          tr(
+            'La synchronisation distante (--remote) nécessite un jeton Pro. ' +
+              'Définissez AUDITOR_TOKEN ou lancez `axaraaudit login --token <jeton>`.',
+            'Remote sync (--remote) requires a Pro token. ' +
+              'Set AUDITOR_TOKEN or run `axaraaudit login --token <token>`.',
+          ),
         );
       }
-      log(yellow('⚠ pro.remoteConfig activé mais aucun jeton trouvé — configuration locale utilisée.'));
+      log(
+        yellow(
+          tr(
+            '⚠ pro.remoteConfig activé mais aucun jeton trouvé — configuration locale utilisée.',
+            '⚠ pro.remoteConfig is enabled but no token was found — using local configuration.',
+          ),
+        ),
+      );
     } else {
       const apiUrl = token.apiUrl ?? loaded.rc.pro.apiUrl;
       const remote = await fetchRemoteConfig(apiUrl, token.token);
@@ -109,12 +126,14 @@ export async function runAudit(argv: readonly string[]): Promise<number> {
       if (remote.tokens !== undefined) {
         inlineTokensJson = JSON.stringify(remote.tokens);
       }
-      log(green(`✓ Règles synchronisées depuis ${apiUrl}`));
+      log(green(tr(`✓ Règles synchronisées depuis ${apiUrl}`, `✓ Rules synced from ${apiUrl}`)));
     }
   }
 
   // ── Collect, analyse, score (single shared pipeline in core) ──
-  const spinner = createSpinner('Analyse du design-system + RGAA…');
+  const spinner = createSpinner(
+    tr('Analyse du design-system + RGAA…', 'Analyzing design system + RGAA…'),
+  );
   if (flags.format === 'pretty') spinner.start();
   let result: Awaited<ReturnType<typeof auditProject>>;
   try {
@@ -132,19 +151,39 @@ export async function runAudit(argv: readonly string[]): Promise<number> {
       ciMode: flags.ci,
     });
   } catch (error) {
-    if (flags.format === 'pretty') spinner.fail('Audit interrompu');
+    if (flags.format === 'pretty') spinner.fail(tr('Audit interrompu', 'Audit aborted'));
     throw error;
   }
   const { payload, gate, rc } = result;
   if (flags.format === 'pretty') {
     spinner.succeed(
-      `Audit terminé — ${payload.drift.summary.filesScanned} fichier(s) analysé(s)`,
+      tr(
+        `Audit terminé — ${payload.drift.summary.filesScanned} fichier(s) analysé(s)`,
+        `Audit complete — ${payload.drift.summary.filesScanned} file(s) analyzed`,
+      ),
     );
   }
 
   if (result.tokensSource.origin === 'auto') {
-    log(green(`✓ Zéro-config : ${result.tokensSource.detail}.`));
-    log(dim('  (aucun fichier de tokens déclaré — les custom properties CSS font foi)'));
+    // Reconstruit le détail depuis les compteurs structurés pour pouvoir le
+    // localiser (core fournit `detail` en français, gardé en fallback).
+    const { count, sourceFileCount } = result.tokensSource;
+    const detail =
+      count !== undefined && sourceFileCount !== undefined
+        ? tr(
+            `${count} tokens extraits de ${sourceFileCount} fichier(s) CSS`,
+            `${count} tokens extracted from ${sourceFileCount} CSS file(s)`,
+          )
+        : result.tokensSource.detail;
+    log(green(tr(`✓ Zéro-config : ${detail}.`, `✓ Zero-config: ${detail}.`)));
+    log(
+      dim(
+        tr(
+          '  (aucun fichier de tokens déclaré — les custom properties CSS font foi)',
+          '  (no tokens file declared — CSS custom properties are the source of truth)',
+        ),
+      ),
+    );
   }
 
   const json = JSON.stringify(payload, null, 2);
@@ -155,12 +194,19 @@ export async function runAudit(argv: readonly string[]): Promise<number> {
     writeFileSync(outPath, renderHtml(payload), 'utf8');
     process.stdout.write(renderPretty(payload, loaded.rootDir, { verdict: !animateScore }));
     if (animateScore) await revealScore(payload.score, payload.gate);
-    log(green(`✓ Rapport HTML écrit : ${outPath}`));
-    log(dim('  Ouvrez-le dans un navigateur — fichier autonome, partageable tel quel.'));
+    log(green(tr(`✓ Rapport HTML écrit : ${outPath}`, `✓ HTML report written: ${outPath}`)));
+    log(
+      dim(
+        tr(
+          '  Ouvrez-le dans un navigateur — fichier autonome, partageable tel quel.',
+          '  Open it in a browser — self-contained file, shareable as is.',
+        ),
+      ),
+    );
   } else {
     if (flags.out !== undefined) {
       writeFileSync(flags.out, `${json}\n`, 'utf8');
-      log(dim(`Rapport JSON écrit : ${flags.out}`));
+      log(dim(tr(`Rapport JSON écrit : ${flags.out}`, `JSON report written: ${flags.out}`)));
     }
     if (flags.format === 'json') {
       process.stdout.write(`${json}\n`);
@@ -173,16 +219,30 @@ export async function runAudit(argv: readonly string[]): Promise<number> {
   // ── Pro: upload (explicit --upload or rc.pro.upload) ──
   if (flags.upload || rc.pro.upload) {
     if (token === null) {
-      log(yellow('⚠ Upload demandé mais aucun jeton Pro — rapport non envoyé (fonctionnalité Pro).'));
+      log(
+        yellow(
+          tr(
+            '⚠ Upload demandé mais aucun jeton Pro — rapport non envoyé (fonctionnalité Pro).',
+            '⚠ Upload requested but no Pro token — report not sent (Pro feature).',
+          ),
+        ),
+      );
     } else {
       const apiUrl = token.apiUrl ?? rc.pro.apiUrl;
       try {
         const ack = await uploadReport(apiUrl, token.token, payload);
-        log(green(`✓ Rapport envoyé au dashboard${ack.url !== undefined ? ` : ${ack.url}` : '.'}`));
+        log(
+          green(
+            tr(
+              `✓ Rapport envoyé au dashboard${ack.url !== undefined ? ` : ${ack.url}` : '.'}`,
+              `✓ Report sent to the dashboard${ack.url !== undefined ? `: ${ack.url}` : '.'}`,
+            ),
+          ),
+        );
       } catch (error) {
         // A cloud outage must never break the local audit: warn, don't throw.
         const reason = error instanceof ApiError ? error.message : String(error);
-        log(yellow(`⚠ Envoi du rapport impossible : ${reason}`));
+        log(yellow(tr(`⚠ Envoi du rapport impossible : ${reason}`, `⚠ Could not send the report: ${reason}`)));
       }
     }
   }
@@ -195,19 +255,28 @@ export async function runAudit(argv: readonly string[]): Promise<number> {
     if (driftCount > 0) {
       tips.push({
         cmd: 'axaraaudit fix --write',
-        why: `applique les remplacements de tokens sûrs (${driftCount} dérive(s) détectée(s))`,
+        why: tr(
+          `applique les remplacements de tokens sûrs (${driftCount} dérive(s) détectée(s))`,
+          `applies safe token replacements (${driftCount} drift(s) detected)`,
+        ),
       });
     }
     if (rgaaFailed.length > 0) {
       tips.push({
         cmd: 'axaraaudit fix --ai --write',
-        why: 'corrige le RGAA (alt, labels, titres…) via Claude — opt-in',
+        why: tr(
+          'corrige le RGAA (alt, labels, titres…) via Claude — opt-in',
+          'fixes RGAA issues (alt, labels, headings…) via Claude — opt-in',
+        ),
       });
       const worstFile = rgaaFailed[0]?.file;
       if (worstFile !== undefined) {
         tips.push({
           cmd: `axaraaudit voice ${worstFile}`,
-          why: "entendez ce fichier comme un utilisateur de lecteur d'écran",
+          why: tr(
+            "entendez ce fichier comme un utilisateur de lecteur d'écran",
+            'hear this file the way a screen-reader user does',
+          ),
         });
       }
     }
@@ -215,14 +284,20 @@ export async function runAudit(argv: readonly string[]): Promise<number> {
       tips.push(
         {
           cmd: `axaraaudit audit --ci --fail-under ${String(payload.gate.failUnder)}`,
-          why: 'verrouillez ce score dans votre pipeline CI',
+          why: tr('verrouillez ce score dans votre pipeline CI', 'lock this score into your CI pipeline'),
         },
-        { cmd: 'axaraaudit history', why: "l'évolution du score sur les derniers commits" },
+        {
+          cmd: 'axaraaudit history',
+          why: tr(
+            "l'évolution du score sur les derniers commits",
+            'how the score evolved over recent commits',
+          ),
+        },
       );
     } else if (flags.format === 'pretty' && flags.out === undefined) {
       tips.push({
         cmd: 'axaraaudit audit --format html',
-        why: 'rapport autonome à partager avec l\'équipe',
+        why: tr('rapport autonome à partager avec l\'équipe', 'self-contained report to share with the team'),
       });
     }
     printTips(tips.slice(0, 3));

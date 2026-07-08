@@ -12,6 +12,7 @@
 import { boldOn, canAnimate, cursor, lerp, paintFg, reset, sleep, stdoutLevel } from './ansi.js';
 import { mascotLines, type Mood } from './mascot.js';
 import { BRAND, SPARKLES } from './theme.js';
+import { tr } from '../i18n.js';
 
 export interface RevealGate {
   readonly evaluated: boolean;
@@ -47,7 +48,7 @@ function frame(score: number, gate: RevealGate, mood: Mood, sparkleTick: number)
 
   const scoreText = `${boldOn(level)}${paintFg(String(score).padStart(3, ' '), scoreColor, level)}${reset(level)}${paintFg(' / 100', BRAND.slate, level)}`;
   const verdict = !gate.evaluated
-    ? paintFg(`objectif ≥ ${gate.failUnder}`, BRAND.slate, level)
+    ? paintFg(tr(`objectif ≥ ${gate.failUnder}`, `target ≥ ${gate.failUnder}`), BRAND.slate, level)
     : gate.passed
       ? `${boldOn(level)}${paintFg('GATE PASSED', BRAND.green, level)}${reset(level)}`
       : `${boldOn(level)}${paintFg('GATE FAILED', BRAND.red, level)}${reset(level)}`;

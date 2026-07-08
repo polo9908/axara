@@ -12,6 +12,7 @@ import { extname, isAbsolute, relative, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 import { jsxToHtml, simulateScreenReader, type VoiceAnnouncement } from '@axaraaudit/core';
 import { ConfigError, loadRc } from '../config/rc.js';
+import { tr } from '../i18n.js';
 import { collectFiles } from '../scan/walk.js';
 import { bold, cyan, dim, green, red, yellow } from '../report/render.js';
 import { printTips } from '../ui/tips.js';
@@ -63,12 +64,19 @@ export async function runVoice(argv: readonly string[]): Promise<number> {
     ]);
   }
   if (targets.length === 0) {
-    throw new ConfigError('Aucun composant (.tsx/.jsx/.html) à lire.');
+    throw new ConfigError(
+      tr('Aucun composant (.tsx/.jsx/.html) à lire.', 'No component (.tsx/.jsx/.html) to read.'),
+    );
   }
 
-  process.stdout.write(`\n${bold('  🎧 SIMULATION LECTEUR D’ÉCRAN')}\n`);
+  process.stdout.write(`\n${bold(tr('  🎧 SIMULATION LECTEUR D’ÉCRAN', '  🎧 SCREEN READER SIMULATION'))}\n`);
   process.stdout.write(
-    dim('  Ce que vos utilisateurs aveugles ou malvoyants entendent réellement.\n'),
+    dim(
+      tr(
+        '  Ce que vos utilisateurs aveugles ou malvoyants entendent réellement.\n',
+        '  What your blind or low-vision users actually hear.\n',
+      ),
+    ),
   );
 
   let totalAnnouncements = 0;
@@ -79,7 +87,7 @@ export async function runVoice(argv: readonly string[]): Promise<number> {
     try {
       content = readFileSync(path, 'utf8');
     } catch {
-      process.stderr.write(red(`Fichier introuvable : ${path}\n`));
+      process.stderr.write(red(tr(`Fichier introuvable : ${path}\n`, `File not found: ${path}\n`)));
       return 2;
     }
     const html = toHtml(path, content);
@@ -98,17 +106,34 @@ export async function runVoice(argv: readonly string[]): Promise<number> {
 
   process.stdout.write('\n');
   if (totalWarnings === 0) {
-    process.stdout.write(green(`  ✓ ${totalAnnouncements} annonce(s), toutes exploitables. Vos utilisateurs vous remercient.\n`));
+    process.stdout.write(
+      green(
+        tr(
+          `  ✓ ${totalAnnouncements} annonce(s), toutes exploitables. Vos utilisateurs vous remercient.\n`,
+          `  ✓ ${totalAnnouncements} announcement(s), all usable. Your users thank you.\n`,
+        ),
+      ),
+    );
   } else {
     process.stdout.write(
-      `  ${yellow(`${totalWarnings} annonce(s) dégradée(s)`)} sur ${totalAnnouncements} — ` +
-        `invisible à l'œil, criant à l'oreille.\n`,
+      `  ${yellow(tr(`${totalWarnings} annonce(s) dégradée(s)`, `${totalWarnings} degraded announcement(s)`))}${tr(
+        ` sur ${totalAnnouncements} — invisible à l'œil, criant à l'oreille.\n`,
+        ` out of ${totalAnnouncements} — invisible to the eye, glaring to the ear.\n`,
+      )}`,
     );
     const firstTarget = targets[0];
     printTips([
-      { cmd: 'axaraaudit fix --ai --write', why: 'corrige alt, labels et titres manquants via Claude' },
+      {
+        cmd: 'axaraaudit fix --ai --write',
+        why: tr('corrige alt, labels et titres manquants via Claude', 'fixes missing alt, labels and titles via Claude'),
+      },
       ...(firstTarget !== undefined
-        ? [{ cmd: `axaraaudit voice ${relative(loaded.rootDir, firstTarget)}`, why: 'réécoutez après correction' }]
+        ? [
+            {
+              cmd: `axaraaudit voice ${relative(loaded.rootDir, firstTarget)}`,
+              why: tr('réécoutez après correction', 'listen again after fixing'),
+            },
+          ]
         : []),
     ]);
     return 0;

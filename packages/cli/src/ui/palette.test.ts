@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { tr } from '../i18n.js';
 import { filterCommands } from './palette.js';
 
 describe('filterCommands', () => {
@@ -18,7 +19,8 @@ describe('filterCommands', () => {
   });
 
   it('cherche aussi dans les définitions', () => {
-    expect(filterCommands('lecteur').map((c) => c.name)).toContain('voice');
+    // Le brief de `voice` mentionne « lecteur d'écran » / "screen reader" selon la langue active.
+    expect(filterCommands(tr('lecteur', 'screen reader')).map((c) => c.name)).toContain('voice');
   });
 
   it('retourne vide quand rien ne correspond', () => {

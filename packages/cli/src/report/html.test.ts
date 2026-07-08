@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { AuditPayload } from './payload.js';
 import { renderHtml } from './html.js';
+import { tr } from '../i18n.js';
 
 function payload(overrides: Partial<AuditPayload> = {}): AuditPayload {
   return {
@@ -66,11 +67,11 @@ function payload(overrides: Partial<AuditPayload> = {}): AuditPayload {
 }
 
 describe('renderHtml', () => {
-  it('produces a self-contained French document with the score and verdict stamp', () => {
+  it('produces a self-contained document with the score and verdict stamp', () => {
     const html = renderHtml(payload());
-    expect(html).toContain('<html lang="fr">');
+    expect(html).toContain(`<html lang="${tr('fr', 'en')}">`);
     expect(html).toContain('>76<');
-    expect(html).toContain('Seuil non atteint');
+    expect(html).toContain(tr('Seuil non atteint', 'Threshold not met'));
     // No network dependency: no external scripts, styles, fonts or images.
     expect(html).not.toMatch(/src\s*=\s*"https?:/);
     expect(html).not.toMatch(/href\s*=\s*"https?:/);
@@ -87,7 +88,7 @@ describe('renderHtml', () => {
     const html = renderHtml(
       payload({ score: 95, gate: { evaluated: true, passed: true, failUnder: 80, reasons: [] } }),
     );
-    expect(html).toContain('Seuil atteint');
+    expect(html).toContain(tr('Seuil atteint', 'Threshold met'));
     expect(html).toContain('stamp ok');
   });
 });

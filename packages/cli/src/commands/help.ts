@@ -12,6 +12,7 @@
 
 import { boldOn, gradient, paintFg, reset, stdoutLevel, type ColorLevel } from '../ui/ansi.js';
 import { BRAND } from '../ui/theme.js';
+import { tr } from '../i18n.js';
 import { CLI_NAME, CLI_VERSION } from '../version.js';
 
 export interface CommandSpec {
@@ -34,38 +35,77 @@ interface CommandGroup {
 export const GROUPS: readonly CommandGroup[] = [
   {
     icon: '🔍',
-    title: 'DIAGNOSTIQUER',
+    title: tr('DIAGNOSTIQUER', 'DIAGNOSE'),
     commands: [
       {
         name: 'audit',
-        brief: 'Analyse le projet : dérives de tokens + RGAA 4.1, score /100',
+        brief: tr(
+          'Analyse le projet : dérives de tokens + RGAA 4.1, score /100',
+          'Analyzes the project: token drift + RGAA 4.1, score /100',
+        ),
         usage: 'axaraaudit audit [options]',
         options: [
-          ['--format pretty|json|html', 'format de sortie (html : rapport autonome partageable)'],
-          ['--out <fichier>', 'écrit le rapport (JSON ou HTML) dans un fichier'],
-          ['--ci', 'mode gatekeeper : exit 1 si le gate échoue'],
-          ['--fail-under <0-100>', 'seuil de score (défaut : config ou 80)'],
-          ['--skip-rgaa', "ne lance que l'analyse de dérive design"],
-          ['--config <chemin>', 'fichier .auditorrc.json explicite'],
-          ['--tokens <chemin>', 'fichier de tokens DTCG (bypass de la config)'],
-          ['--remote / --upload', 'sync règles / envoi du rapport (jeton Pro)'],
+          [
+            '--format pretty|json|html',
+            tr(
+              'format de sortie (html : rapport autonome partageable)',
+              'output format (html: self-contained, shareable report)',
+            ),
+          ],
+          [
+            tr('--out <fichier>', '--out <file>'),
+            tr(
+              'écrit le rapport (JSON ou HTML) dans un fichier',
+              'writes the report (JSON or HTML) to a file',
+            ),
+          ],
+          ['--ci', tr('mode gatekeeper : exit 1 si le gate échoue', 'gatekeeper mode: exit 1 if the gate fails')],
+          [
+            '--fail-under <0-100>',
+            tr('seuil de score (défaut : config ou 80)', 'score threshold (default: config or 80)'),
+          ],
+          [
+            '--skip-rgaa',
+            tr("ne lance que l'analyse de dérive design", 'only runs the design drift analysis'),
+          ],
+          [
+            tr('--config <chemin>', '--config <path>'),
+            tr('fichier .auditorrc.json explicite', 'explicit .auditorrc.json file'),
+          ],
+          [
+            tr('--tokens <chemin>', '--tokens <path>'),
+            tr('fichier de tokens DTCG (bypass de la config)', 'DTCG tokens file (bypasses the config)'),
+          ],
+          [
+            '--remote / --upload',
+            tr('sync règles / envoi du rapport (jeton Pro)', 'rule sync / report upload (Pro token)'),
+          ],
         ],
         examples: [
-          ['axaraaudit audit', 'rapport complet dans le terminal'],
-          ['axaraaudit audit --format html', 'rapport HTML à partager'],
-          ['axaraaudit audit --ci --fail-under 90', 'gate de pipeline CI'],
+          ['axaraaudit audit', tr('rapport complet dans le terminal', 'full report in the terminal')],
+          ['axaraaudit audit --format html', tr('rapport HTML à partager', 'shareable HTML report')],
+          ['axaraaudit audit --ci --fail-under 90', tr('gate de pipeline CI', 'CI pipeline gate')],
         ],
         next: ['fix', 'voice', 'history'],
       },
       {
         name: 'check',
-        brief: 'Valide des fichiers précis — pensé pour hooks IA et pre-commit',
-        usage: 'axaraaudit check <fichier...> [--format json]',
+        brief: tr(
+          'Valide des fichiers précis — pensé pour hooks IA et pre-commit',
+          'Validates specific files — built for AI hooks and pre-commit',
+        ),
+        usage: tr(
+          'axaraaudit check <fichier...> [--format json]',
+          'axaraaudit check <file...> [--format json]',
+        ),
         options: [
-          ['--format pretty|json', 'json : sortie machine (hooks, CI)'],
+          ['--format pretty|json', tr('json : sortie machine (hooks, CI)', 'json: machine output (hooks, CI)')],
         ],
         examples: [
-          ['axaraaudit check src/Header.tsx', 'exit 0 conforme, 1 sinon'],
+          [
+            'axaraaudit check src/Header.tsx',
+            tr('exit 0 conforme, 1 sinon', 'exit 0 if compliant, 1 otherwise'),
+          ],
         ],
         next: ['fix'],
       },
@@ -73,94 +113,187 @@ export const GROUPS: readonly CommandGroup[] = [
   },
   {
     icon: '🛠',
-    title: 'CORRIGER',
+    title: tr('CORRIGER', 'FIX'),
     commands: [
       {
         name: 'fix',
-        brief: 'Applique les corrections — sûres par défaut, IA en option',
+        brief: tr(
+          'Applique les corrections — sûres par défaut, IA en option',
+          'Applies fixes — safe by default, AI optional',
+        ),
         usage: 'axaraaudit fix [--write] [--all] [--ai]',
         options: [
-          ['--write', 'persiste les corrections (sinon : prévisualisation)'],
-          ['--all', 'inclut les tokens proches (--min-confidence <0..1>, défaut 0.7)'],
-          ['--ai', 'délègue le reste (RGAA, valeurs sans token) à Claude'],
-          ['--model <id>', 'modèle IA (défaut : claude-opus-4-8)'],
+          [
+            '--write',
+            tr('persiste les corrections (sinon : prévisualisation)', 'persists the fixes (otherwise: preview)'),
+          ],
+          [
+            '--all',
+            tr(
+              'inclut les tokens proches (--min-confidence <0..1>, défaut 0.7)',
+              'includes near-match tokens (--min-confidence <0..1>, default 0.7)',
+            ),
+          ],
+          [
+            '--ai',
+            tr(
+              'délègue le reste (RGAA, valeurs sans token) à Claude',
+              'delegates the rest (RGAA, tokenless values) to Claude',
+            ),
+          ],
+          ['--model <id>', tr('modèle IA (défaut : claude-opus-4-8)', 'AI model (default: claude-opus-4-8)')],
         ],
         examples: [
-          ['axaraaudit fix', 'prévisualisation, rien n\'est modifié'],
-          ['axaraaudit fix --write', 'applique les remplacements 100 % sûrs'],
-          ['axaraaudit fix --ai --write', 'corrige aussi alt, labels, titres… via Claude'],
+          ['axaraaudit fix', tr("prévisualisation, rien n'est modifié", 'preview, nothing is modified')],
+          [
+            'axaraaudit fix --write',
+            tr('applique les remplacements 100 % sûrs', 'applies the 100% safe replacements'),
+          ],
+          [
+            'axaraaudit fix --ai --write',
+            tr(
+              'corrige aussi alt, labels, titres… via Claude',
+              'also fixes alt, labels, headings… via Claude',
+            ),
+          ],
         ],
         next: ['audit'],
       },
       {
         name: 'init',
-        brief: 'Génère un .auditorrc.json de démarrage',
+        brief: tr('Génère un .auditorrc.json de démarrage', 'Generates a starter .auditorrc.json'),
         usage: 'axaraaudit init [--force]',
-        options: [['--force', 'écrase un fichier existant']],
+        options: [['--force', tr('écrase un fichier existant', 'overwrites an existing file')]],
         next: ['audit'],
       },
     ],
   },
   {
     icon: '🎧',
-    title: 'EXPLORER & RESSENTIR',
+    title: tr('EXPLORER & RESSENTIR', 'EXPLORE & EXPERIENCE'),
     commands: [
       {
         name: 'voice',
-        brief: "Simule un lecteur d'écran : entendez vos composants comme un utilisateur aveugle",
-        usage: 'axaraaudit voice [fichier...]',
-        examples: [['axaraaudit voice src/Header.tsx', 'annonce le composant, signale les trous']],
+        brief: tr(
+          "Simule un lecteur d'écran : entendez vos composants comme un utilisateur aveugle",
+          'Simulates a screen reader: hear your components like a blind user',
+        ),
+        usage: tr('axaraaudit voice [fichier...]', 'axaraaudit voice [file...]'),
+        examples: [
+          [
+            'axaraaudit voice src/Header.tsx',
+            tr('annonce le composant, signale les trous', 'announces the component, flags the gaps'),
+          ],
+        ],
         next: ['fix'],
       },
       {
         name: 'history',
-        brief: "Rejoue l'audit sur les derniers commits et trace l'évolution du score",
+        brief: tr(
+          "Rejoue l'audit sur les derniers commits et trace l'évolution du score",
+          'Replays the audit over recent commits and charts the score trend',
+        ),
         usage: 'axaraaudit history [--limit <n>]',
-        options: [['--limit <n>', 'nombre de commits (défaut 15)']],
+        options: [['--limit <n>', tr('nombre de commits (défaut 15)', 'number of commits (default 15)')]],
         next: ['blame', 'fix'],
       },
       {
         name: 'blame',
-        brief: 'Attribue chaque dérive à son auteur (git blame)',
+        brief: tr(
+          'Attribue chaque dérive à son auteur (git blame)',
+          'Attributes each drift to its author (git blame)',
+        ),
         usage: 'axaraaudit blame',
         next: ['fix'],
       },
       {
         name: 'roast',
-        brief: "L'audit commenté par un humoriste — cinglant mais bienveillant (clé IA requise)",
+        brief: tr(
+          "L'audit commenté par un humoriste — cinglant mais bienveillant (clé IA requise)",
+          'The audit narrated by a comedian — scathing but kind (AI key required)',
+        ),
         usage: 'axaraaudit roast [--model <id>]',
         next: ['fix'],
       },
       {
         name: 'hello',
-        brief: 'Rencontrez Axa, la mascotte, et la charte graphique du CLI',
+        brief: tr(
+          'Rencontrez Axa, la mascotte, et la charte graphique du CLI',
+          "Meet Axa, the mascot, and the CLI's visual identity",
+        ),
         usage: 'axaraaudit hello [--demo]',
-        options: [['--demo', 'rejoue un audit animé — idéal pour un GIF']],
+        options: [
+          ['--demo', tr('rejoue un audit animé — idéal pour un GIF', 'replays an animated audit — great for a GIF')],
+        ],
         next: ['audit'],
       },
     ],
   },
   {
     icon: '⚙️',
-    title: 'CONFIGURATION & COMPTE',
+    title: tr('CONFIGURATION & COMPTE', 'SETTINGS & ACCOUNT'),
     commands: [
       {
         name: 'login',
-        brief: 'Enregistre un jeton Pro et/ou une clé Anthropic (active fix --ai)',
-        usage: 'axaraaudit login [--token <jeton>] [--anthropic-key <clé>]',
+        brief: tr(
+          'Enregistre un jeton Pro et/ou une clé Anthropic (active fix --ai)',
+          'Stores a Pro token and/or an Anthropic key (enables fix --ai)',
+        ),
+        usage: tr(
+          'axaraaudit login [--token <jeton>] [--anthropic-key <clé>]',
+          'axaraaudit login [--token <token>] [--anthropic-key <key>]',
+        ),
         options: [
-          ['--token <jeton>', 'jeton Pro (--remote, --upload, --ci gate cloud)'],
-          ['--anthropic-key <clé>', 'clé API Anthropic pour fix --ai et roast'],
+          [
+            tr('--token <jeton>', '--token <token>'),
+            tr('jeton Pro (--remote, --upload, --ci gate cloud)', 'Pro token (--remote, --upload, --ci cloud gate)'),
+          ],
+          [
+            tr('--anthropic-key <clé>', '--anthropic-key <key>'),
+            tr('clé API Anthropic pour fix --ai et roast', 'Anthropic API key for fix --ai and roast'),
+          ],
         ],
         next: ['fix'],
       },
-      { name: 'logout', brief: 'Supprime le jeton enregistré', usage: 'axaraaudit logout' },
-      { name: 'whoami', brief: "Affiche l'identité liée au jeton", usage: 'axaraaudit whoami' },
+      {
+        name: 'logout',
+        brief: tr('Supprime le jeton enregistré', 'Removes the stored token'),
+        usage: 'axaraaudit logout',
+      },
+      {
+        name: 'whoami',
+        brief: tr("Affiche l'identité liée au jeton", 'Shows the identity tied to the token'),
+        usage: 'axaraaudit whoami',
+      },
+      {
+        name: 'completion',
+        brief: tr(
+          'Complétion shell (Tab) pour axaraaudit et axa',
+          'Shell (Tab) completion for axaraaudit and axa',
+        ),
+        usage: 'axaraaudit completion <bash|zsh|pwsh>',
+        examples: [
+          ['eval "$(axaraaudit completion bash)"', tr('dans ~/.bashrc', 'in ~/.bashrc')],
+          [
+            'eval "$(axaraaudit completion zsh)"',
+            tr('dans ~/.zshrc (après compinit)', 'in ~/.zshrc (after compinit)'),
+          ],
+          [
+            'axaraaudit completion pwsh | Out-String | Invoke-Expression',
+            tr('dans $PROFILE', 'in $PROFILE'),
+          ],
+        ],
+      },
       {
         name: 'help',
-        brief: "Cette aide — ou l'aide détaillée d'une commande",
-        usage: 'axaraaudit help [commande]',
-        examples: [['axaraaudit help fix', 'options et exemples de `fix`']],
+        brief: tr(
+          "Cette aide — ou l'aide détaillée d'une commande",
+          "This help — or a command's detailed help",
+        ),
+        usage: tr('axaraaudit help [commande]', 'axaraaudit help [command]'),
+        examples: [
+          ['axaraaudit help fix', tr('options et exemples de `fix`', 'options and examples for `fix`')],
+        ],
       },
     ],
   },
@@ -216,9 +349,9 @@ const PAD = 10; // largeur de la colonne « nom de commande » dans l'aide globa
 export function renderHelp(level: ColorLevel = stdoutLevel): string {
   const lines: string[] = [];
   lines.push('');
-  lines.push(`  ${gradient(`${CLI_NAME} v${CLI_VERSION}`, BRAND.violet, BRAND.cyan, level)} ${paintFg('— audit design-system + RGAA 4.1, dès le terminal', BRAND.slate, level)}`);
+  lines.push(`  ${gradient(`${CLI_NAME} v${CLI_VERSION}`, BRAND.violet, BRAND.cyan, level)} ${paintFg(tr('— audit design-system + RGAA 4.1, dès le terminal', '— design-system + RGAA 4.1 audit, right from the terminal'), BRAND.slate, level)}`);
   lines.push('');
-  lines.push(`  ${b('USAGE', level)}  ${paintFg(`${CLI_NAME} <commande> [options]`, BRAND.cyan, level)}`);
+  lines.push(`  ${b('USAGE', level)}  ${paintFg(`${CLI_NAME} ${tr('<commande>', '<command>')} [options]`, BRAND.cyan, level)}`);
 
   for (const group of GROUPS) {
     lines.push('');
@@ -231,11 +364,12 @@ export function renderHelp(level: ColorLevel = stdoutLevel): string {
   }
 
   lines.push('');
-  lines.push(`  ${b('DÉMARRAGE EXPRESS', level)}`);
-  lines.push(`    ${paintFg('axaraaudit audit', BRAND.cyan, level)}              ${paintFg('→ votre premier rapport, zéro config', BRAND.slate, level)}`);
-  lines.push(`    ${paintFg('axaraaudit fix --write', BRAND.cyan, level)}        ${paintFg('→ applique les corrections sûres', BRAND.slate, level)}`);
+  lines.push(`  ${b(tr('DÉMARRAGE EXPRESS', 'QUICK START'), level)}`);
+  lines.push(`    ${paintFg('axaraaudit audit', BRAND.cyan, level)}              ${paintFg(tr('→ votre premier rapport, zéro config', '→ your first report, zero config'), BRAND.slate, level)}`);
+  lines.push(`    ${paintFg('axaraaudit fix --write', BRAND.cyan, level)}        ${paintFg(tr('→ applique les corrections sûres', '→ applies the safe fixes'), BRAND.slate, level)}`);
   lines.push('');
-  lines.push(`  ${paintFg('✦', BRAND.violet, level)} ${paintFg('Aide détaillée : ', BRAND.slate, level)}${paintFg('axaraaudit help <commande>', BRAND.cyan, level)}${paintFg('  ·  codes de sortie : 0 ok, 1 gate échoué, 2 erreur d\'usage', BRAND.slate, level)}`);
+  lines.push(`  ${paintFg('✦', BRAND.violet, level)} ${paintFg(tr('Aide détaillée : ', 'Detailed help: '), BRAND.slate, level)}${paintFg(tr('axaraaudit help <commande>', 'axaraaudit help <command>'), BRAND.cyan, level)}${paintFg(tr('  ·  codes de sortie : 0 ok, 1 gate échoué, 2 erreur d\'usage', '  ·  exit codes: 0 ok, 1 gate failed, 2 usage error'), BRAND.slate, level)}`);
+  lines.push(`  ${paintFg('✦', BRAND.violet, level)} ${paintFg(tr('Langue : ', 'Language: '), BRAND.slate, level)}${paintFg('--lang fr|en', BRAND.cyan, level)}${paintFg(tr('  ou  AXARA_LANG=fr|en  (défaut : locale système)', '  or  AXARA_LANG=fr|en  (default: system locale)'), BRAND.slate, level)}`);
   lines.push('');
   return lines.join('\n');
 }
@@ -259,7 +393,7 @@ export function renderCommandHelp(spec: CommandSpec, level: ColorLevel = stdoutL
 
   if (spec.examples !== undefined && spec.examples.length > 0) {
     lines.push('');
-    lines.push(`  ${b('EXEMPLES', level)}`);
+    lines.push(`  ${b(tr('EXEMPLES', 'EXAMPLES'), level)}`);
     const width = Math.max(...spec.examples.map(([cmd]) => cmd.length));
     for (const [cmd, doc] of spec.examples) {
       lines.push(`    ${paintFg('$', BRAND.pink, level)} ${paintFg(cmd.padEnd(width), BRAND.cyan, level)}  ${paintFg(doc, BRAND.slate, level)}`);
@@ -269,7 +403,7 @@ export function renderCommandHelp(spec: CommandSpec, level: ColorLevel = stdoutL
   if (spec.next !== undefined && spec.next.length > 0) {
     const chain = spec.next.map((n) => paintFg(`axaraaudit ${n}`, BRAND.cyan, level)).join(paintFg('  ·  ', BRAND.slate, level));
     lines.push('');
-    lines.push(`  ${paintFg('✦', BRAND.violet, level)} ${paintFg('Suite logique :', BRAND.slate, level)} ${chain}`);
+    lines.push(`  ${paintFg('✦', BRAND.violet, level)} ${paintFg(tr('Suite logique :', 'Next up:'), BRAND.slate, level)} ${chain}`);
   }
   lines.push('');
   return lines.join('\n');
@@ -283,7 +417,7 @@ export function runHelp(argv: readonly string[]): number {
     if (spec === undefined) {
       const suggestion = didYouMean(target);
       process.stderr.write(
-        `Commande inconnue : ${target}${suggestion !== undefined ? ` — vouliez-vous dire \`${suggestion}\` ?` : ''}\n`,
+        `${tr('Commande inconnue :', 'Unknown command:')} ${target}${suggestion !== undefined ? tr(` — vouliez-vous dire \`${suggestion}\` ?`, ` — did you mean \`${suggestion}\`?`) : ''}\n`,
       );
       process.stdout.write(renderHelp());
       return 2;

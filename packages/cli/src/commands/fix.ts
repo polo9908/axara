@@ -29,6 +29,7 @@ import { ConfigError } from '../config/rc.js';
 import { resolveAnthropicKey } from '../config/credentials.js';
 import { requestFileFix, ClaudeError, CLAUDE_MODEL } from '../services/claude.js';
 import { bold, cyan, dim, green, red, yellow } from '../report/render.js';
+import { tr } from '../i18n.js';
 import { printTips, type Tip } from '../ui/tips.js';
 
 const JSX_EXT = new Set(['.tsx', '.jsx']);
@@ -51,22 +52,31 @@ function renderLineDiff(before: string, after: string, maxLines = 24): string {
     if (oldLine !== undefined) lines.push(red(`    - ${oldLine.trimEnd()}`));
     if (newLine !== undefined) lines.push(green(`    + ${newLine.trimEnd()}`));
   }
-  if (lines.length >= maxLines) lines.push(dim('    … (diff tronqué)'));
+  if (lines.length >= maxLines) lines.push(dim(tr('    … (diff tronqué)', '    … (diff truncated)')));
   return lines.join('\n');
 }
 
 function describeDriftIssue(issue: DriftIssue): string {
   const suggestion =
     issue.suggestion !== undefined
-      ? ` ; token le plus proche : ${issue.suggestion.replacement} (${issue.suggestion.tokenValue})`
+      ? tr(
+          ` ; token le plus proche : ${issue.suggestion.replacement} (${issue.suggestion.tokenValue})`,
+          `; closest token: ${issue.suggestion.replacement} (${issue.suggestion.tokenValue})`,
+        )
       : '';
-  return `Design drift L${issue.line} — ${issue.property}: ${issue.value} (aucun token exact${suggestion})`;
+  return tr(
+    `Design drift L${issue.line} — ${issue.property}: ${issue.value} (aucun token exact${suggestion})`,
+    `Design drift L${issue.line} — ${issue.property}: ${issue.value} (no exact token${suggestion})`,
+  );
 }
 
 function describeRgaaFinding(finding: RgaaFinding): string {
-  const impact = finding.impact ?? 'impact inconnu';
+  const impact = finding.impact ?? tr('impact inconnu', 'unknown impact');
   const sample = finding.occurrences[0]?.html.slice(0, 160) ?? '';
-  return `RGAA ${finding.criterion} — ${finding.criterionTitle} (${impact}). Élément : ${sample}`;
+  return tr(
+    `RGAA ${finding.criterion} — ${finding.criterionTitle} (${impact}). Élément : ${sample}`,
+    `RGAA ${finding.criterion} — ${finding.criterionTitle} (${impact}). Element: ${sample}`,
+  );
 }
 
 function tokensCatalog(tokens: readonly DesignToken[]): string {
@@ -97,7 +107,12 @@ export async function runFix(argv: readonly string[]): Promise<number> {
   const rawConfidence = values['min-confidence'];
   const minConfidence = rawConfidence === undefined ? 0.7 : Number(rawConfidence);
   if (Number.isNaN(minConfidence) || minConfidence < 0 || minConfidence > 1) {
-    throw new ConfigError(`--min-confidence doit être un nombre entre 0 et 1 (reçu: ${rawConfidence}).`);
+    throw new ConfigError(
+      tr(
+        `--min-confidence doit être un nombre entre 0 et 1 (reçu: ${rawConfidence}).`,
+        `--min-confidence must be a number between 0 and 1 (got: ${rawConfidence}).`,
+      ),
+    );
   }
 
   // ── 1. Mechanical pass (exact tokens, plus near-misses with --all) ──
@@ -113,14 +128,26 @@ export async function runFix(argv: readonly string[]): Promise<number> {
   const { loaded, report, files: filePaths, totalApplied, remaining } = mech;
 
   if (mech.tokensSource.origin === 'auto') {
-    process.stderr.write(green(`✓ Zéro-config : ${mech.tokensSource.detail}.\n`));
+    process.stderr.write(
+      green(tr(`✓ Zéro-config : ${mech.tokensSource.detail}.\n`, `✓ Zero-config: ${mech.tokensSource.detail}.\n`)),
+    );
   }
 
   const rel = (path: string): string => relative(loaded.rootDir, path);
 
-  out(`\n${bold(write ? '  AUTO-FIX — ÉCRITURE' : '  AUTO-FIX — PRÉVISUALISATION (dry-run)')}`);
-  out(all ? dim(`  (mode --all, confiance ≥ ${minConfidence})`) : '');
-  out(ai ? dim('  (+ passe IA)') : '');
+  out(
+    `\n${bold(
+      write
+        ? tr('  AUTO-FIX — ÉCRITURE', '  AUTO-FIX — WRITE')
+        : tr('  AUTO-FIX — PRÉVISUALISATION (dry-run)', '  AUTO-FIX — PREVIEW (dry-run)'),
+    )}`,
+  );
+  out(
+    all
+      ? dim(tr(`  (mode --all, confiance ≥ ${minConfidence})`, `  (--all mode, confidence ≥ ${minConfidence})`))
+      : '',
+  );
+  out(ai ? dim(tr('  (+ passe IA)', '  (+ AI pass)')) : '');
   out('\n\n');
 
   for (const fileResult of mech.fixed) {
@@ -129,7 +156,8 @@ export async function runFix(argv: readonly string[]): Promise<number> {
       out(`    ${green('✓')} ${dim(`L${fix.line}`)}  ${fix.from} → ${green(fix.to)}\n`);
     }
   }
-  if (totalApplied === 0) out(dim('  (aucune correction mécanique applicable)\n'));
+  if (totalApplied === 0)
+    out(dim(tr('  (aucune correction mécanique applicable)\n', '  (no mechanical fix applicable)\n')));
 
   // ── 2. Optional AI pass (RGAA + drifts the mechanics could not solve) ──
   let aiFixedFiles = 0;
@@ -139,11 +167,23 @@ export async function runFix(argv: readonly string[]): Promise<number> {
     const apiKey = resolveAnthropicKey();
     if (apiKey === null) {
       out('\n');
-      out(`${yellow('  ✦ Correction IA non configurée.')}\n`);
-      out('  Pour l\'activer (2 minutes) :\n');
-      out(`    1. Créez une clé API sur ${cyan('https://console.anthropic.com/settings/keys')}\n`);
+      out(`${yellow(tr('  ✦ Correction IA non configurée.', '  ✦ AI fixing is not configured.'))}\n`);
+      out(tr('  Pour l\'activer (2 minutes) :\n', '  To enable it (2 minutes):\n'));
+      out(
+        tr(
+          `    1. Créez une clé API sur ${cyan('https://console.anthropic.com/settings/keys')}\n`,
+          `    1. Create an API key at ${cyan('https://console.anthropic.com/settings/keys')}\n`,
+        ),
+      );
       out(`    2. ${bold('axaraaudit login --anthropic-key sk-ant-...')}\n`);
-      out(dim('       (ou définissez la variable d\'environnement ANTHROPIC_API_KEY)\n'));
+      out(
+        dim(
+          tr(
+            '       (ou définissez la variable d\'environnement ANTHROPIC_API_KEY)\n',
+            '       (or set the ANTHROPIC_API_KEY environment variable)\n',
+          ),
+        ),
+      );
       return 2;
     }
 
@@ -173,17 +213,26 @@ export async function runFix(argv: readonly string[]): Promise<number> {
       }
     }
 
-    out(`\n${bold('  PASSE IA')} ${dim(`(${values.model ?? CLAUDE_MODEL})`)}\n`);
+    out(`\n${bold(tr('  PASSE IA', '  AI PASS'))} ${dim(`(${values.model ?? CLAUDE_MODEL})`)}\n`);
     if (aiWork.size === 0) {
-      out(green('    ✓ Rien à corriger par IA.\n'));
+      out(green(tr('    ✓ Rien à corriger par IA.\n', '    ✓ Nothing left for the AI to fix.\n')));
     } else {
-      out(dim(`  ${aiWork.size} fichier(s) envoyé(s) à l'API Anthropic (opt-in --ai).\n`));
+      out(
+        dim(
+          tr(
+            `  ${aiWork.size} fichier(s) envoyé(s) à l'API Anthropic (opt-in --ai).\n`,
+            `  ${aiWork.size} file(s) sent to the Anthropic API (opt-in --ai).\n`,
+          ),
+        ),
+      );
       const catalog = tokensCatalog(report.tokens);
 
       for (const [path, issues] of aiWork) {
         // Re-read: the mechanical pass may have just rewritten the file.
         const source = readFileSync(path, 'utf8');
-        out(`\n  ${cyan(rel(path))} ${dim(`(${issues.length} problème(s))`)}\n`);
+        out(
+          `\n  ${cyan(rel(path))} ${dim(tr(`(${issues.length} problème(s))`, `(${issues.length} issue(s))`))}\n`,
+        );
         try {
           const result = await requestFileFix(
             apiKey,
@@ -194,7 +243,7 @@ export async function runFix(argv: readonly string[]): Promise<number> {
           aiOutputTokens += result.outputTokens;
 
           if (result.content.trimEnd() === source.trimEnd()) {
-            out(dim('    (aucune modification proposée)\n'));
+            out(dim(tr('    (aucune modification proposée)\n', '    (no change proposed)\n')));
             continue;
           }
           out(`${renderLineDiff(source, result.content)}\n`);
@@ -207,7 +256,7 @@ export async function runFix(argv: readonly string[]): Promise<number> {
                 : result.content,
               'utf8',
             );
-            out(green('    ✓ Fichier corrigé par IA\n'));
+            out(green(tr('    ✓ Fichier corrigé par IA\n', '    ✓ File fixed by AI\n')));
           }
           aiFixedFiles += 1;
         } catch (error) {
@@ -221,7 +270,10 @@ export async function runFix(argv: readonly string[]): Promise<number> {
       }
       out(
         dim(
-          `\n  Utilisation API : ${aiInputTokens} tokens d'entrée, ${aiOutputTokens} tokens de sortie.\n`,
+          tr(
+            `\n  Utilisation API : ${aiInputTokens} tokens d'entrée, ${aiOutputTokens} tokens de sortie.\n`,
+            `\n  API usage: ${aiInputTokens} input tokens, ${aiOutputTokens} output tokens.\n`,
+          ),
         ),
       );
     }
@@ -231,20 +283,36 @@ export async function runFix(argv: readonly string[]): Promise<number> {
   if (!ai && remaining.length > 0) {
     const nearMisses = remaining.filter((issue) => issue.match === 'nearest-token');
     const noToken = remaining.filter((issue) => issue.match === 'no-token');
-    out(`\n${bold('  NON CORRIGÉ')} ${dim(`(${remaining.length})`)}\n`);
+    out(`\n${bold(tr('  NON CORRIGÉ', '  NOT FIXED'))} ${dim(`(${remaining.length})`)}\n`);
     if (nearMisses.length > 0) {
-      out(yellow(`  Valeurs proches d'un token — vérifiez puis relancez avec --all :\n`));
+      out(
+        yellow(
+          tr(
+            `  Valeurs proches d'un token — vérifiez puis relancez avec --all :\n`,
+            `  Values close to a token — review then re-run with --all:\n`,
+          ),
+        ),
+      );
       for (const issue of nearMisses) {
         const s = issue.suggestion;
         out(
           `    ${yellow('≈')} ${dim(`${rel(issue.file)}:L${issue.line}`)}  ${issue.value} → ${
-            s !== undefined ? `${s.replacement} ${dim(`(confiance ${s.confidence})`)}` : ''
+            s !== undefined
+              ? `${s.replacement} ${dim(tr(`(confiance ${s.confidence})`, `(confidence ${s.confidence})`))}`
+              : ''
           }\n`,
         );
       }
     }
     if (noToken.length > 0) {
-      out(red(`  Aucun token proche — décision manuelle, ou déléguez à l'IA avec --ai :\n`));
+      out(
+        red(
+          tr(
+            `  Aucun token proche — décision manuelle, ou déléguez à l'IA avec --ai :\n`,
+            `  No close token — decide manually, or delegate to the AI with --ai:\n`,
+          ),
+        ),
+      );
       for (const issue of noToken) {
         out(`    ${red('✖')} ${dim(`${rel(issue.file)}:L${issue.line}`)}  ${issue.property}: ${issue.value}\n`);
       }
@@ -252,9 +320,18 @@ export async function runFix(argv: readonly string[]): Promise<number> {
   }
 
   // ── Summary ──
-  out(`\n  ${green(String(totalApplied))} correction(s) mécanique(s) ${write ? 'appliquée(s)' : 'applicable(s)'}`);
-  if (ai) out(`, ${green(String(aiFixedFiles))} fichier(s) corrigé(s) par IA`);
-  else out(`, ${String(remaining.length)} restante(s)`);
+  out(
+    `\n  ${green(String(totalApplied))} ${
+      write
+        ? tr('correction(s) mécanique(s) appliquée(s)', 'mechanical fix(es) applied')
+        : tr('correction(s) mécanique(s) applicable(s)', 'mechanical fix(es) applicable')
+    }`,
+  );
+  if (ai)
+    out(
+      `, ${green(String(aiFixedFiles))} ${tr('fichier(s) corrigé(s) par IA', 'file(s) fixed by AI')}`,
+    );
+  else out(tr(`, ${String(remaining.length)} restante(s)`, `, ${String(remaining.length)} remaining`));
   out('\n');
 
   // ── Tips contextuels : la prochaine étape logique selon le résultat ──
@@ -262,22 +339,28 @@ export async function runFix(argv: readonly string[]): Promise<number> {
   if (!write && (totalApplied > 0 || aiFixedFiles > 0)) {
     tips.push({
       cmd: `axaraaudit fix${all ? ' --all' : ''}${ai ? ' --ai' : ''} --write`,
-      why: 'appliquez ce que vous venez de prévisualiser',
+      why: tr('appliquez ce que vous venez de prévisualiser', 'apply what you just previewed'),
     });
   }
   if (write && (totalApplied > 0 || aiFixedFiles > 0)) {
-    tips.push({ cmd: 'axaraaudit audit', why: 'mesurez le nouveau score après corrections' });
+    tips.push({
+      cmd: 'axaraaudit audit',
+      why: tr('mesurez le nouveau score après corrections', 'measure the new score after the fixes'),
+    });
   }
   if (!all && remaining.some((issue) => issue.match === 'nearest-token')) {
     tips.push({
       cmd: `axaraaudit fix --all${write ? ' --write' : ''}`,
-      why: 'inclut aussi les tokens proches (confiance ≥ 0.7)',
+      why: tr('inclut aussi les tokens proches (confiance ≥ 0.7)', 'also includes close tokens (confidence ≥ 0.7)'),
     });
   }
   if (!ai) {
     tips.push({
       cmd: `axaraaudit fix --ai${write ? ' --write' : ''}`,
-      why: 'corrige aussi le RGAA (alt, labels, titres…) et les valeurs sans token via Claude',
+      why: tr(
+        'corrige aussi le RGAA (alt, labels, titres…) et les valeurs sans token via Claude',
+        'also fixes RGAA issues (alt, labels, headings…) and token-less values via Claude',
+      ),
     });
   }
   printTips(tips.slice(0, 3));

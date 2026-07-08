@@ -5,6 +5,7 @@ import {
   requestFileFix,
   ClaudeError,
 } from './claude.js';
+import { tr } from '../i18n.js';
 
 const REQUEST = {
   file: 'src/Header.jsx',
@@ -59,7 +60,7 @@ describe('requestFileFix', () => {
       requestFileFix('sk-bad', REQUEST, {
         fetchImpl: fakeFetch(401, { error: { type: 'authentication_error', message: 'invalid x-api-key' } }),
       }),
-    ).rejects.toThrowError(/Clé API Anthropic refusée/);
+    ).rejects.toThrowError(tr('Clé API Anthropic refusée', 'Anthropic API key rejected'));
   });
 
   it('fails clearly on a truncated (max_tokens) response', async () => {
@@ -70,7 +71,7 @@ describe('requestFileFix', () => {
           stop_reason: 'max_tokens',
         }),
       }),
-    ).rejects.toThrowError(/tronquée/);
+    ).rejects.toThrowError(tr('tronquée', 'Truncated'));
   });
 
   it('fails clearly when no code block is returned', async () => {

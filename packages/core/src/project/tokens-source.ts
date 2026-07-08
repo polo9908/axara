@@ -21,6 +21,9 @@ export interface TokensSource {
   readonly origin: 'file' | 'auto';
   /** Human-readable description of where the tokens came from. */
   readonly detail: string;
+  /** Set when origin === 'auto' — lets callers build a localized message. */
+  readonly count?: number;
+  readonly sourceFileCount?: number;
 }
 
 export interface ScannedFile {
@@ -54,6 +57,8 @@ export function loadTokensSource(
       json: JSON.stringify(extraction.document),
       origin: 'auto',
       detail: `${extraction.count} tokens extraits de ${extraction.sourceFiles.length} fichier(s) CSS`,
+      count: extraction.count,
+      sourceFileCount: extraction.sourceFiles.length,
     };
   }
 }

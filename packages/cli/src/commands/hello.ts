@@ -7,6 +7,7 @@
  */
 
 import { parseArgs } from 'node:util';
+import { tr } from '../i18n.js';
 import { bg, boldOn, gradient, paintFg, reset, sleep, stdoutLevel, type Rgb } from '../ui/ansi.js';
 import { renderBanner } from '../ui/banner.js';
 import { mascotLines, MASCOT_NAME, type Mood } from '../ui/mascot.js';
@@ -15,10 +16,10 @@ import { createSpinner } from '../ui/spinner.js';
 import { BRAND } from '../ui/theme.js';
 
 const MOODS: readonly { mood: Mood; label: string }[] = [
-  { mood: 'idle', label: 'audit en cours' },
-  { mood: 'blink', label: 'analyse…' },
-  { mood: 'happy', label: 'gate passed' },
-  { mood: 'shocked', label: 'gate failed' },
+  { mood: 'idle', label: tr('audit en cours', 'audit in progress') },
+  { mood: 'blink', label: tr('analyse…', 'analyzing…') },
+  { mood: 'happy', label: tr('gate passed', 'gate passed') },
+  { mood: 'shocked', label: tr('gate failed', 'gate failed') },
 ];
 
 function swatch(name: string, c: Rgb): string {
@@ -34,7 +35,13 @@ function renderShowcase(): string {
   lines.push(renderBanner(level));
 
   // — Les humeurs d'Axa, côte à côte —
-  lines.push(paintFg(`  ${MASCOT_NAME}, la mascotte — quatre humeurs :`, BRAND.slate, level));
+  lines.push(
+    paintFg(
+      tr(`  ${MASCOT_NAME}, la mascotte — quatre humeurs :`, `  ${MASCOT_NAME}, the mascot — four moods:`),
+      BRAND.slate,
+      level,
+    ),
+  );
   lines.push('');
   const sprites = MOODS.map(({ mood }) => mascotLines(mood, level));
   const spriteHeight = sprites[0]?.length ?? 0;
@@ -45,16 +52,25 @@ function renderShowcase(): string {
   lines.push('');
 
   // — Palette —
-  lines.push(paintFg('  Charte graphique « nébuleuse » :', BRAND.slate, level));
+  lines.push(paintFg(tr('  Charte graphique « nébuleuse » :', '  "Nebula" visual identity:'), BRAND.slate, level));
   lines.push('');
-  lines.push(swatch('violet', BRAND.violet));
-  lines.push(swatch('cyan', BRAND.cyan));
-  lines.push(swatch('rose', BRAND.pink));
-  lines.push(swatch('succès', BRAND.green));
-  lines.push(swatch('alerte', BRAND.amber));
-  lines.push(swatch('erreur', BRAND.red));
+  lines.push(swatch(tr('violet', 'violet'), BRAND.violet));
+  lines.push(swatch(tr('cyan', 'cyan'), BRAND.cyan));
+  lines.push(swatch(tr('rose', 'pink'), BRAND.pink));
+  lines.push(swatch(tr('succès', 'success'), BRAND.green));
+  lines.push(swatch(tr('alerte', 'warning'), BRAND.amber));
+  lines.push(swatch(tr('erreur', 'error'), BRAND.red));
   lines.push('');
-  lines.push(`  ${gradient('✦ ✦ ✦', BRAND.violet, BRAND.cyan, level)}  ${paintFg('axaraaudit hello --demo  →  rejoue un audit animé (idéal GIF)', BRAND.slate, level)}`);
+  lines.push(
+    `  ${gradient('✦ ✦ ✦', BRAND.violet, BRAND.cyan, level)}  ${paintFg(
+      tr(
+        'axaraaudit hello --demo  →  rejoue un audit animé (idéal GIF)',
+        'axaraaudit hello --demo  →  replays an animated audit (perfect for GIFs)',
+      ),
+      BRAND.slate,
+      level,
+    )}`,
+  );
   lines.push('');
   return lines.join('\n');
 }
@@ -63,9 +79,9 @@ async function runDemo(): Promise<void> {
   process.stdout.write(renderBanner(stdoutLevel));
 
   const steps: readonly string[] = [
-    'Analyse du design-system (tokens DTCG)…',
-    'Vérification RGAA 4.1 (axe-core)…',
-    'Calcul du score de conformité…',
+    tr('Analyse du design-system (tokens DTCG)…', 'Analyzing the design system (DTCG tokens)…'),
+    tr('Vérification RGAA 4.1 (axe-core)…', 'Checking RGAA 4.1 (axe-core)…'),
+    tr('Calcul du score de conformité…', 'Computing the compliance score…'),
   ];
   const spinner = createSpinner(steps[0] ?? '');
   spinner.start();
@@ -73,12 +89,14 @@ async function runDemo(): Promise<void> {
     spinner.update(step);
     await sleep(900);
   }
-  spinner.succeed('Audit terminé — 128 fichiers, 3 dérives auto-fixables');
+  spinner.succeed(
+    tr('Audit terminé — 128 fichiers, 3 dérives auto-fixables', 'Audit complete — 128 files, 3 auto-fixable drifts'),
+  );
 
   if (canReveal()) {
     await revealScore(92, { evaluated: true, passed: true, failUnder: 80, reasons: [] });
   } else {
-    process.stdout.write('  SCORE 92/100 — GATE PASSED\n');
+    process.stdout.write(tr('  SCORE 92/100 — GATE PASSED\n', '  SCORE 92/100 — GATE PASSED\n'));
   }
 }
 

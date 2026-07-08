@@ -18,9 +18,14 @@ import { runRoast } from './commands/roast.js';
 import { runHello } from './commands/hello.js';
 import { runInit } from './commands/init.js';
 import { runLogin, runLogout, runWhoami } from './commands/login.js';
+import { runCompletion } from './commands/completion.js';
 import { didYouMean, findCommand, renderCommandHelp, renderHelp, runHelp } from './commands/help.js';
 import { paletteAvailable, runPalette } from './ui/palette.js';
+import { maybeNotifyUpdate } from './ui/update-check.js';
 import { CLI_VERSION } from './version.js';
+import { stripLangFlag, tr } from './i18n.js';
+import { existsSync } from 'node:fs';
+import { RC_FILENAME } from './config/rc.js';
 
 async function dispatch(command: string, rest: readonly string[]): Promise<number> {
   // `axaraaudit <commande> --help` : aide ciblée avant que parseArgs ne
@@ -58,11 +63,15 @@ async function dispatch(command: string, rest: readonly string[]): Promise<numbe
       return runLogout();
     case 'whoami':
       return runWhoami();
+    case 'completion':
+      return runCompletion(rest);
     default: {
       const suggestion = didYouMean(command);
-      process.stderr.write(
-        `Commande inconnue : ${command}${suggestion !== undefined ? ` — vouliez-vous dire \`axaraaudit ${suggestion}\` ?` : ''}\n`,
-      );
+      const hint =
+        suggestion !== undefined
+          ? tr(` — vouliez-vous dire \`axaraaudit ${suggestion}\` ?`, ` — did you mean \`axaraaudit ${suggestion}\`?`)
+          : '';
+      process.stderr.write(`${tr('Commande inconnue', 'Unknown command')}: ${command}${hint}\n`);
       process.stdout.write(renderHelp());
       return 2;
     }
@@ -70,7 +79,9 @@ async function dispatch(command: string, rest: readonly string[]): Promise<numbe
 }
 
 async function main(): Promise<number> {
-  const argv = process.argv.slice(2);
+  // `--lang fr|en` est global, résolu par i18n.ts à l'import — on le retire
+  // pour que les parseArgs des commandes ne le rejettent pas.
+  const argv = stripLangFlag(process.argv.slice(2));
   const first = argv[0];
 
   if (first === '--version' || first === '-v') {
@@ -83,10 +94,20 @@ async function main(): Promise<number> {
   // revient, Échap/Ctrl-C termine (avec le code de la dernière commande).
   if (first === undefined || first.startsWith('/')) {
     if (paletteAvailable()) {
+      // Projet déjà configuré → `audit` présélectionné, Entrée suffit.
+      const paletteOpts = existsSync(RC_FILENAME)
+        ? {
+            preselect: 'audit',
+            hint: tr(
+              `${RC_FILENAME} détecté — Entrée lance l'audit`,
+              `${RC_FILENAME} detected — Enter runs the audit`,
+            ),
+          }
+        : {};
       let query = first ?? '';
       let lastCode = 0;
       for (;;) {
-        const pick = await runPalette(query);
+        const pick = await runPalette(query, paletteOpts);
         if (pick === null) return lastCode;
         lastCode = await dispatch(pick, []);
         query = '';
@@ -113,14 +134,15 @@ async function main(): Promise<number> {
 
 main()
   .then((code) => {
+    maybeNotifyUpdate();
     process.exitCode = code;
   })
   .catch((error: unknown) => {
     if (error instanceof ConfigError || error instanceof ApiError) {
-      process.stderr.write(`Erreur : ${error.message}\n`);
+      process.stderr.write(`${tr('Erreur', 'Error')} : ${error.message}\n`);
       process.exitCode = 2;
     } else {
-      process.stderr.write(`Erreur inattendue : ${error instanceof Error ? error.stack ?? error.message : String(error)}\n`);
+      process.stderr.write(`${tr('Erreur inattendue', 'Unexpected error')} : ${error instanceof Error ? error.stack ?? error.message : String(error)}\n`);
       process.exitCode = 2;
     }
   });

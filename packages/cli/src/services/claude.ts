@@ -7,6 +7,7 @@
  */
 
 import { USER_AGENT } from '../version.js';
+import { tr } from '../i18n.js';
 
 export const CLAUDE_API_URL = 'https://api.anthropic.com/v1/messages';
 export const CLAUDE_MODEL = 'claude-opus-4-8';
@@ -126,7 +127,9 @@ export async function requestText(apiKey: string, options: RequestTextOptions): 
     });
   } catch (error) {
     const reason = error instanceof Error ? error.message : String(error);
-    throw new ClaudeError(`API Anthropic injoignable : ${reason}`);
+    throw new ClaudeError(
+      tr(`API Anthropic injoignable : ${reason}`, `Anthropic API unreachable: ${reason}`),
+    );
   }
 
   const data = (await response.json().catch(() => ({}))) as MessagesResponse;
@@ -135,21 +138,39 @@ export async function requestText(apiKey: string, options: RequestTextOptions): 
     const detail = data.error?.message ?? `HTTP ${response.status}`;
     if (response.status === 401) {
       throw new ClaudeError(
-        `Clé API Anthropic refusée (${detail}). Vérifiez ANTHROPIC_API_KEY ou relancez \`axaraaudit login --anthropic-key\`.`,
+        tr(
+          `Clé API Anthropic refusée (${detail}). Vérifiez ANTHROPIC_API_KEY ou relancez \`axaraaudit login --anthropic-key\`.`,
+          `Anthropic API key rejected (${detail}). Check ANTHROPIC_API_KEY or run \`axaraaudit login --anthropic-key\` again.`,
+        ),
         401,
       );
     }
     if (response.status === 429) {
-      throw new ClaudeError(`Limite de débit Anthropic atteinte — réessayez dans un instant. (${detail})`, 429);
+      throw new ClaudeError(
+        tr(
+          `Limite de débit Anthropic atteinte — réessayez dans un instant. (${detail})`,
+          `Anthropic rate limit reached — try again in a moment. (${detail})`,
+        ),
+        429,
+      );
     }
     if (response.status === 529 || response.status >= 500) {
-      throw new ClaudeError(`API Anthropic temporairement surchargée — réessayez. (${detail})`, response.status);
+      throw new ClaudeError(
+        tr(
+          `API Anthropic temporairement surchargée — réessayez. (${detail})`,
+          `Anthropic API temporarily overloaded — try again. (${detail})`,
+        ),
+        response.status,
+      );
     }
-    throw new ClaudeError(`Erreur API Anthropic : ${detail}`, response.status);
+    throw new ClaudeError(
+      tr(`Erreur API Anthropic : ${detail}`, `Anthropic API error: ${detail}`),
+      response.status,
+    );
   }
 
   if (data.stop_reason === 'refusal') {
-    throw new ClaudeError('Le modèle a refusé la requête.');
+    throw new ClaudeError(tr('Le modèle a refusé la requête.', 'The model refused the request.'));
   }
 
   const text = (data.content ?? [])
@@ -187,12 +208,20 @@ export async function requestFileFix(
 
   if (result.stopReason === 'max_tokens') {
     throw new ClaudeError(
-      `Réponse tronquée pour ${request.file} (fichier trop volumineux pour une correction IA).`,
+      tr(
+        `Réponse tronquée pour ${request.file} (fichier trop volumineux pour une correction IA).`,
+        `Truncated response for ${request.file} (file too large for an AI fix).`,
+      ),
     );
   }
   const content = extractCodeBlock(result.text);
   if (content === null) {
-    throw new ClaudeError(`Réponse inexploitable du modèle pour ${request.file} (aucun bloc de code).`);
+    throw new ClaudeError(
+      tr(
+        `Réponse inexploitable du modèle pour ${request.file} (aucun bloc de code).`,
+        `Unusable model response for ${request.file} (no code block).`,
+      ),
+    );
   }
 
   return {

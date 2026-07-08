@@ -7,6 +7,7 @@
 
 import type { AuditorRcInput } from '../config/rc.js';
 import { USER_AGENT } from '../version.js';
+import { tr } from '../i18n.js';
 
 const TIMEOUT_MS = 10_000;
 
@@ -51,13 +52,19 @@ async function request(url: string, token: string, init: RequestInit = {}): Prom
     });
   } catch (error) {
     const reason = error instanceof Error ? error.message : String(error);
-    throw new ApiError(`API injoignable (${url}) : ${reason}`);
+    throw new ApiError(tr(`API injoignable (${url}) : ${reason}`, `API unreachable (${url}): ${reason}`));
   }
   if (!response.ok) {
     throw new ApiError(
       response.status === 401 || response.status === 403
-        ? `Jeton refusé par l'API (HTTP ${response.status}). Vérifiez AUDITOR_TOKEN ou relancez \`axaraaudit login\`.`
-        : `L'API a répondu HTTP ${response.status} sur ${url}.`,
+        ? tr(
+            `Jeton refusé par l'API (HTTP ${response.status}). Vérifiez AUDITOR_TOKEN ou relancez \`axaraaudit login\`.`,
+            `Token rejected by the API (HTTP ${response.status}). Check AUDITOR_TOKEN or run \`axaraaudit login\` again.`,
+          )
+        : tr(
+            `L'API a répondu HTTP ${response.status} sur ${url}.`,
+            `The API answered HTTP ${response.status} on ${url}.`,
+          ),
       response.status,
     );
   }
@@ -66,7 +73,7 @@ async function request(url: string, token: string, init: RequestInit = {}): Prom
   try {
     return JSON.parse(text);
   } catch {
-    throw new ApiError(`Réponse non-JSON reçue de ${url}.`);
+    throw new ApiError(tr(`Réponse non-JSON reçue de ${url}.`, `Non-JSON response received from ${url}.`));
   }
 }
 

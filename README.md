@@ -380,12 +380,42 @@ Claude-Code-style command palette: type to filter (a leading `/` is tolerated),
 arrows to navigate, Tab to complete, Enter to run — and after the command
 finishes you're back in the palette, like a session. Esc quits.
 
+On a project that already has an `.auditorrc.json`, the palette opens with
+`audit` pre-selected — pressing Enter immediately runs the audit.
+
 ```
   axaraaudit — tapez pour filtrer · ↑↓ naviguer · Tab compléter · Entrée exécuter · Échap quitter
   ❯ /au▌
    ▸ audit     Analyse le projet : score /100, dérive tokens + RGAA
      ...
 ```
+
+### Shell completions (Tab)
+
+Generated from the same command catalog as the help — subcommands and their flags:
+
+```bash
+eval "$(axaraaudit completion bash)"    # ~/.bashrc
+eval "$(axaraaudit completion zsh)"     # ~/.zshrc (after compinit)
+axaraaudit completion pwsh | Out-String | Invoke-Expression   # PowerShell $PROFILE
+```
+
+### Language — English / French
+
+Every CLI message exists in both languages. The language is picked from your
+system locale automatically; override it per run or globally:
+
+```bash
+axa audit --lang en        # per run
+AXARA_LANG=fr axa audit    # env var (put it in your shell profile to persist)
+```
+
+### Update notifications
+
+When a newer version is on npm, the CLI prints a one-line notice (at most once
+a day, never in CI, never when output is piped). The registry check runs in a
+detached background process — it never slows a command down. Opt out with
+`AXARA_NO_UPDATE_CHECK=1`.
 
 ---
 

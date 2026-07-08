@@ -9,6 +9,7 @@
 
 import { existsSync, readFileSync } from 'node:fs';
 import { basename, isAbsolute, resolve } from 'node:path';
+import { tr } from '../i18n.js';
 
 export const RC_FILENAME = '.auditorrc.json';
 
@@ -112,7 +113,9 @@ function parseJsonLenient(raw: string, path: string): unknown {
     return JSON.parse(raw.replace(/^﻿/, ''));
   } catch (error) {
     const reason = error instanceof Error ? error.message : String(error);
-    throw new ConfigError(`${path} n'est pas un JSON valide : ${reason}`);
+    throw new ConfigError(
+      tr(`${path} n'est pas un JSON valide : ${reason}`, `${path} is not valid JSON: ${reason}`),
+    );
   }
 }
 
@@ -126,7 +129,9 @@ export function loadRc(cwd: string, explicitPath?: string): LoadedRc {
   if (explicitPath !== undefined) {
     rcPath = isAbsolute(explicitPath) ? explicitPath : resolve(cwd, explicitPath);
     if (!existsSync(rcPath)) {
-      throw new ConfigError(`Fichier de configuration introuvable : ${rcPath}`);
+      throw new ConfigError(
+        tr(`Fichier de configuration introuvable : ${rcPath}`, `Config file not found: ${rcPath}`),
+      );
     }
   } else {
     const candidate = resolve(cwd, RC_FILENAME);
@@ -137,7 +142,9 @@ export function loadRc(cwd: string, explicitPath?: string): LoadedRc {
   if (rcPath !== null) {
     const parsed = parseJsonLenient(readFileSync(rcPath, 'utf8'), rcPath);
     if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
-      throw new ConfigError(`${rcPath} doit contenir un objet JSON.`);
+      throw new ConfigError(
+        tr(`${rcPath} doit contenir un objet JSON.`, `${rcPath} must contain a JSON object.`),
+      );
     }
     rc = mergeRc(DEFAULT_RC, parsed as AuditorRcInput);
   }
@@ -155,8 +162,12 @@ export function resolveRcTokensPath(loaded: LoadedRc, override?: string): string
   const abs = isAbsolute(raw) ? raw : resolve(loaded.rootDir, raw);
   if (!existsSync(abs)) {
     throw new ConfigError(
-      `Fichier de tokens introuvable : ${abs}\n` +
-        `Déclarez "tokens" dans ${RC_FILENAME} ou lancez \`axaraaudit init\`.`,
+      tr(
+        `Fichier de tokens introuvable : ${abs}\n` +
+          `Déclarez "tokens" dans ${RC_FILENAME} ou lancez \`axaraaudit init\`.`,
+        `Tokens file not found: ${abs}\n` +
+          `Declare "tokens" in ${RC_FILENAME} or run \`axaraaudit init\`.`,
+      ),
     );
   }
   return abs;
