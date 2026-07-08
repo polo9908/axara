@@ -64,6 +64,9 @@ token drift + RGAA accessibility, with a score out of 100.
 > A `design-tokens.dtcg.json` file (or `.auditorrc.json`) remains the recommended
 > source of truth once you want to fine-tune things — it takes priority if present.
 
+Like it? `npm i -g axaraaudit` gives you the `axa` shortcut and an interactive
+command palette — see [Installation](#installation).
+
 ---
 
 ## 🤖 Built for AI agents
@@ -341,18 +344,48 @@ The building block behind the Claude Code plugin's hook — see
 
 ---
 
-## Installation (once you're past the `npx` trial)
+## Installation
+
+**Recommended — global install** (like `claude`, `eslint -g`…): install once, then the
+command is available everywhere, no `npx` prefix:
 
 ```bash
-npm install -D @axaraaudit/cli
+npm install -g axaraaudit
+
+axaraaudit audit     # full command
+axa audit            # short alias — same CLI
+axa                  # no argument → interactive palette (see below)
 ```
 
-> 💡 **npm vs npx vs pnpm — what's the difference?**
-> - `npm install` **installs** the package in your project (once)
-> - `npx axaraaudit ...` **runs** the installed command (every time you use it)
-> - Using **pnpm**? Same idea: `pnpm add -D @axaraaudit/cli` then `pnpm exec axaraaudit ...`
->
-> All commands below use `npx`, which works either way.
+**Zero-install trial** — run it once in any project without installing anything:
+
+```bash
+npx axaraaudit audit
+```
+
+**Project-local install** — pin the version in the repo, ideal for CI and teams:
+
+```bash
+npm install -D @axaraaudit/cli     # or: pnpm add -D @axaraaudit/cli
+npx axaraaudit audit               # resolves to the local version
+```
+
+> The examples below use `npx axaraaudit ...` so they work in all three setups —
+> with the global install you can always shorten them to `axa ...`.
+
+### Interactive palette — no flags to memorize
+
+Type `axa` (or `axaraaudit`) with no argument in a terminal and you get a
+Claude-Code-style command palette: type to filter (a leading `/` is tolerated),
+arrows to navigate, Tab to complete, Enter to run — and after the command
+finishes you're back in the palette, like a session. Esc quits.
+
+```
+  axaraaudit — tapez pour filtrer · ↑↓ naviguer · Tab compléter · Entrée exécuter · Échap quitter
+  ❯ /au▌
+   ▸ audit     Analyse le projet : score /100, dérive tokens + RGAA
+     ...
+```
 
 ---
 

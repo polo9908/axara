@@ -1,6 +1,6 @@
 {
   "name": "axaraaudit",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "AxaraAudit — alias de @axaraaudit/cli pour que `npx axaraaudit` fonctionne tel quel (audit design-system + RGAA 4.1)",
   "license": "MIT",
   "type": "module",
@@ -19,7 +19,8 @@
     "directory": "packages/axaraaudit"
   },
   "bin": {
-    "axaraaudit": "./bin.js"
+    "axaraaudit": "./bin.js",
+    "axa": "./bin.js"
   },
   "files": [
     "bin.js"

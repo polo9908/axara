@@ -79,11 +79,19 @@ async function main(): Promise<number> {
   }
   // Sans argument (ou avec `/filtre`, mémoire musculaire Claude Code) :
   // palette interactive sur TTY, aide statique sinon (pipes, CI).
+  // La palette boucle comme une session : après chaque commande on y
+  // revient, Échap/Ctrl-C termine (avec le code de la dernière commande).
   if (first === undefined || first.startsWith('/')) {
     if (paletteAvailable()) {
-      const pick = await runPalette(first ?? '');
-      if (pick === null) return 0;
-      return dispatch(pick, []);
+      let query = first ?? '';
+      let lastCode = 0;
+      for (;;) {
+        const pick = await runPalette(query);
+        if (pick === null) return lastCode;
+        lastCode = await dispatch(pick, []);
+        query = '';
+        process.stdout.write('\n');
+      }
     }
     process.stdout.write(renderHelp());
     return 0;
