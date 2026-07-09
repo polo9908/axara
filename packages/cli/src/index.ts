@@ -18,6 +18,7 @@ import { runRoast } from './commands/roast.js';
 import { runHello } from './commands/hello.js';
 import { runInit } from './commands/init.js';
 import { runLogin, runLogout, runWhoami } from './commands/login.js';
+import { runPush } from './commands/push.js';
 import { runCompletion } from './commands/completion.js';
 import { didYouMean, findCommand, renderCommandHelp, renderHelp, runHelp } from './commands/help.js';
 import { paletteAvailable, runPalette } from './ui/palette.js';
@@ -57,6 +58,8 @@ async function dispatch(command: string, rest: readonly string[]): Promise<numbe
       return runInit(rest);
     case 'hello':
       return runHello(rest);
+    case 'push':
+      return runPush(rest);
     case 'login':
       return runLogin(rest);
     case 'logout':

@@ -6,9 +6,11 @@
  * `toolVersion`.
  */
 
+import { isAbsolute, relative } from 'node:path';
 import type { AuditReport } from '../analyzer/audit.js';
 import type { RgaaFinding } from '../rgaa/types.js';
 import type { DriftIssue } from '../types.js';
+import { driftIdentity, fingerprintAll, rgaaIdentity } from './fingerprint.js';
 import type { GateResult, FileRgaaFinding } from './score.js';
 
 export const PAYLOAD_VERSION = 1;
@@ -37,12 +39,15 @@ export interface AuditPayload {
   readonly drift: {
     readonly summary: AuditReport['summary'];
     readonly tokenErrors: readonly string[];
-    readonly issues: readonly DriftIssue[];
+    readonly issues: readonly (DriftIssue & { readonly fingerprint: string })[];
   };
   readonly rgaa: {
     readonly enabled: boolean;
     readonly aggregate: RgaaAggregate;
-    readonly findings: readonly (RgaaFinding & { readonly file: string })[];
+    readonly findings: readonly (RgaaFinding & {
+      readonly file: string;
+      readonly fingerprint: string;
+    })[];
   };
 }
 
@@ -73,6 +78,11 @@ export interface BuildAuditPayloadArgs {
   readonly tool: string;
   readonly toolVersion: string;
   readonly project: string;
+  /**
+   * Project root, used to relativize drift file paths before fingerprinting
+   * (fingerprints must be identical across machines and checkouts).
+   */
+  readonly rootDir: string;
   readonly drift: AuditReport;
   readonly rgaaEnabled: boolean;
   readonly rgaaFilesAudited: number;
@@ -82,6 +92,16 @@ export interface BuildAuditPayloadArgs {
 }
 
 export function buildAuditPayload(args: BuildAuditPayloadArgs): AuditPayload {
+  // Drift issues carry absolute paths (fix pass needs them); fingerprints hash
+  // the root-relative form. RGAA findings are already root-relative.
+  const driftFingerprints = fingerprintAll(
+    args.drift.issues.map((issue) =>
+      driftIdentity(issue, isAbsolute(issue.file) ? relative(args.rootDir, issue.file) : issue.file),
+    ),
+  );
+  const rgaaFingerprints = fingerprintAll(
+    args.rgaaFindings.map(({ file, finding }) => rgaaIdentity(finding, file)),
+  );
   return {
     tool: args.tool,
     toolVersion: args.toolVersion,
@@ -98,12 +118,19 @@ export function buildAuditPayload(args: BuildAuditPayloadArgs): AuditPayload {
     drift: {
       summary: args.drift.summary,
       tokenErrors: args.drift.tokenErrors,
-      issues: args.drift.issues,
+      issues: args.drift.issues.map((issue, i) => ({
+        ...issue,
+        fingerprint: driftFingerprints[i] as string,
+      })),
     },
     rgaa: {
       enabled: args.rgaaEnabled,
       aggregate: aggregateRgaa(args.rgaaFilesAudited, args.rgaaFindings),
-      findings: args.rgaaFindings.map(({ file, finding }) => ({ ...finding, file })),
+      findings: args.rgaaFindings.map(({ file, finding }, i) => ({
+        ...finding,
+        file,
+        fingerprint: rgaaFingerprints[i] as string,
+      })),
     },
   };
 }

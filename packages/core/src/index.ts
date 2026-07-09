@@ -113,6 +113,13 @@ export {
   type BuildAuditPayloadArgs,
 } from './project/payload.js';
 export {
+  FINGERPRINT_SCHEME,
+  fingerprintAll,
+  driftIdentity,
+  rgaaIdentity,
+  normalizeFingerprintPath,
+} from './project/fingerprint.js';
+export {
   auditProject,
   fixProject,
   checkFiles,

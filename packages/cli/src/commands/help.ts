@@ -234,6 +234,37 @@ export const GROUPS: readonly CommandGroup[] = [
     title: tr('CONFIGURATION & COMPTE', 'SETTINGS & ACCOUNT'),
     commands: [
       {
+        name: 'push',
+        brief: tr(
+          "Envoie un rapport d'audit au dashboard Pro (équipes, tendances)",
+          'Sends an audit report to the Pro dashboard (teams, trends)',
+        ),
+        usage: tr('axaraaudit push [rapport.json] [options]', 'axaraaudit push [report.json] [options]'),
+        options: [
+          [
+            '--dry-run',
+            tr('affiche ce qui serait envoyé, sans jeton ni réseau', 'shows what would be sent, no token or network'),
+          ],
+          [
+            '--skip-rgaa',
+            tr('audit frais : dérive design uniquement', 'fresh audit: design drift only'),
+          ],
+          [
+            tr('--config <chemin>', '--config <path>'),
+            tr('fichier .auditorrc.json explicite', 'explicit .auditorrc.json file'),
+          ],
+        ],
+        examples: [
+          ['axaraaudit push', tr('audit frais, puis envoi', 'fresh audit, then upload')],
+          [
+            'axaraaudit push report.json',
+            tr('envoie un rapport JSON existant (artefact CI)', 'sends an existing JSON report (CI artifact)'),
+          ],
+          ['axaraaudit push --dry-run', tr("prévisualise l'envoi", 'previews the upload')],
+        ],
+        next: ['login', 'whoami'],
+      },
+      {
         name: 'login',
         brief: tr(
           'Enregistre un jeton Pro et/ou une clé Anthropic (active fix --ai)',

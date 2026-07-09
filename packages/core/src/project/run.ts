@@ -143,6 +143,7 @@ export async function auditProject(options: ProjectAuditOptions): Promise<Projec
     tool: options.tool,
     toolVersion: options.toolVersion,
     project: rc.project,
+    rootDir: loaded.rootDir,
     drift,
     rgaaEnabled,
     rgaaFilesAudited,

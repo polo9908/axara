@@ -50,6 +50,34 @@ describe('auditProject', () => {
     }
   });
 
+  it('stamps a stable fingerprint on every drift issue and RGAA finding', async () => {
+    const result = await auditProject({ cwd: dir, tool: 't', toolVersion: '0' });
+    for (const issue of result.payload.drift.issues) {
+      expect(issue.fingerprint).toMatch(/^[0-9a-f]{16}$/);
+    }
+    for (const finding of result.payload.rgaa.findings) {
+      expect(finding.fingerprint).toMatch(/^[0-9a-f]{16}$/);
+    }
+    // Same violations, different checkout directory → same fingerprints
+    // (identity must never depend on the absolute path or the machine).
+    const clone = mkdtempSync(join(tmpdir(), 'axaraaudit-run-clone-'));
+    try {
+      writeFileSync(join(clone, 'design-tokens.dtcg.json'), TOKENS);
+      mkdirSync(join(clone, 'src'));
+      writeFileSync(join(clone, 'src', 'app.css'), readFileSync(join(dir, 'src', 'app.css')));
+      writeFileSync(join(clone, 'src', 'App.tsx'), readFileSync(join(dir, 'src', 'App.tsx')));
+      const again = await auditProject({ cwd: clone, tool: 'other-tool', toolVersion: '1' });
+      expect(again.payload.drift.issues.map((i) => i.fingerprint)).toEqual(
+        result.payload.drift.issues.map((i) => i.fingerprint),
+      );
+      expect(again.payload.rgaa.findings.map((f) => f.fingerprint)).toEqual(
+        result.payload.rgaa.findings.map((f) => f.fingerprint),
+      );
+    } finally {
+      rmSync(clone, { recursive: true, force: true });
+    }
+  });
+
   it('honours skipRgaa and rc overrides', async () => {
     const result = await auditProject({
       cwd: dir,
