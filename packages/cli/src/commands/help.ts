@@ -92,7 +92,32 @@ export const GROUPS: readonly CommandGroup[] = [
           ['axaraaudit audit --format html', tr('rapport HTML à partager', 'shareable HTML report')],
           ['axaraaudit audit --ci --fail-under 90', tr('gate de pipeline CI', 'CI pipeline gate')],
         ],
-        next: ['fix', 'voice', 'history'],
+        next: ['fix', 'export', 'voice', 'history'],
+      },
+      {
+        name: 'export',
+        brief: tr(
+          "Exporte le rapport d'audit en PDF — prêt à partager (client, ticket, marché public)",
+          'Exports the audit report as a PDF — ready to share (client, ticket, tender)',
+        ),
+        keywords: ['pdf', 'rapport', 'report', 'imprimer', 'print', 'partager', 'share', 'livrable', 'deliverable', 'document', 'client'],
+        usage: tr('axaraaudit export [rapport.json] [options]', 'axaraaudit export [report.json] [options]'),
+        options: [
+          [
+            tr('--out <fichier.pdf>', '--out <file.pdf>'),
+            tr('destination (défaut : rapport-axaraaudit.pdf)', 'destination (default: axaraaudit-report.pdf)'),
+          ],
+          ['--skip-rgaa', tr('audit frais : dérive design uniquement', 'fresh audit: design drift only')],
+          [
+            tr('--config <chemin>', '--config <path>'),
+            tr('fichier .auditorrc.json explicite', 'explicit .auditorrc.json file'),
+          ],
+        ],
+        examples: [
+          ['axaraaudit export', tr('audit frais → PDF dans le dossier courant', 'fresh audit → PDF in the current folder')],
+          ['axaraaudit export report.json --out audit.pdf', tr('convertit un rapport JSON existant', 'converts an existing JSON report')],
+        ],
+        next: ['fix', 'push'],
       },
       {
         name: 'check',
