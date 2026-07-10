@@ -18,15 +18,42 @@ const ESC = '\u001b';
 const CTRL_C = '\u0003';
 const BACKSPACE = '\u007f';
 
-/** Filtre : préfixe d'abord, puis inclusion (nom ou définition). Exporté pour les tests. */
+/** Minuscules sans accents : « Clé » ≈ « cle » — l'utilisateur tape comme il pense. */
+function fold(text: string): string {
+  return text.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+}
+
+/**
+ * Barre de recherche par mots-clés. Chaque mot de la requête doit matcher
+ * quelque part ; le score classe : préfixe du nom > nom > mot-clé (déclaré
+ * dans le CATALOG, FR + EN) > définition. Tri stable → à score égal, l'ordre
+ * du catalogue (par intention) est conservé. Exporté pour les tests.
+ */
 export function filterCommands(rawQuery: string): readonly CommandSpec[] {
-  const query = rawQuery.replace(/^\//, '').trim().toLowerCase();
+  const query = fold(rawQuery.replace(/^\//, '').trim());
   if (query === '') return ALL;
-  const starts = ALL.filter((c) => c.name.startsWith(query));
-  const includes = ALL.filter(
-    (c) => !c.name.startsWith(query) && (c.name.includes(query) || c.brief.toLowerCase().includes(query)),
-  );
-  return [...starts, ...includes];
+  const words = query.split(/\s+/);
+
+  const score = (cmd: CommandSpec): number => {
+    const name = fold(cmd.name);
+    const keywords = (cmd.keywords ?? []).map(fold);
+    const brief = fold(cmd.brief);
+    let total = 0;
+    for (const word of words) {
+      if (name.startsWith(word)) total += 100;
+      else if (name.includes(word)) total += 60;
+      else if (keywords.some((k) => k.startsWith(word))) total += 40;
+      else if (keywords.some((k) => k.includes(word))) total += 30;
+      else if (brief.includes(word)) total += 10;
+      else return -1; // chaque mot doit matcher — sinon la commande sort
+    }
+    return total;
+  };
+
+  return ALL.map((cmd) => ({ cmd, s: score(cmd) }))
+    .filter(({ s }) => s >= 0)
+    .sort((a, b) => b.s - a.s)
+    .map(({ cmd }) => cmd);
 }
 
 /** La palette exige un vrai terminal interactif des deux côtés. */
@@ -53,7 +80,7 @@ function render(
   const b = (t: string): string => (level === 'none' ? t : `${boldOn(level)}${t}${reset(level)}`);
   const lines: string[] = [];
   lines.push(
-    `  ${gradient('axaraaudit', BRAND.violet, BRAND.cyan, level)} ${paintFg(tr('— tapez pour filtrer · ↑↓ naviguer · Tab compléter · Entrée exécuter · Échap quitter', '— type to filter · ↑↓ navigate · Tab complete · Enter run · Esc quit'), BRAND.slate, level)}`,
+    `  ${gradient('axaraaudit', BRAND.violet, BRAND.cyan, level)} ${paintFg(tr('— cherchez par mot-clé (jeton, mcp, rapport…) · ↑↓ naviguer · Tab compléter · Entrée exécuter · Échap quitter', '— search by keyword (token, mcp, report…) · ↑↓ navigate · Tab complete · Enter run · Esc quit'), BRAND.slate, level)}`,
   );
   if (hint !== undefined) {
     lines.push(`  ${paintFg('✦', BRAND.violet, level)} ${paintFg(hint, BRAND.slate, level)}`);

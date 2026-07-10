@@ -26,4 +26,35 @@ describe('filterCommands', () => {
   it('retourne vide quand rien ne correspond', () => {
     expect(filterCommands('zzzzz')).toHaveLength(0);
   });
+
+  it('trouve par mot-clé, dans les deux langues', () => {
+    // « jeton » et "token" sont des keywords de settings/login/whoami…
+    for (const query of ['jeton', 'token']) {
+      const names = filterCommands(query).map((c) => c.name);
+      expect(names).toContain('settings');
+      expect(names).toContain('login');
+    }
+    expect(filterCommands('mcp').map((c) => c.name)).toContain('settings');
+    expect(filterCommands('rapport')[0]?.name).toBe('audit');
+  });
+
+  it('est insensible aux accents (clé ≈ cle)', () => {
+    const accented = filterCommands('clé').map((c) => c.name);
+    const plain = filterCommands('cle').map((c) => c.name);
+    expect(accented).toEqual(plain);
+    expect(plain).toContain('login');
+  });
+
+  it('classe le nom exact avant les correspondances par mot-clé', () => {
+    // « config » est un keyword de settings ET un mot de plusieurs briefs :
+    // le préfixe de nom (completion ne matche pas, mais settings via keyword)…
+    const names = filterCommands('login').map((c) => c.name);
+    expect(names[0]).toBe('login');
+  });
+
+  it('exige que chaque mot de la requête matche', () => {
+    expect(filterCommands('jeton zzzzz')).toHaveLength(0);
+    const names = filterCommands('jeton pro').map((c) => c.name);
+    expect(names).toContain('login');
+  });
 });

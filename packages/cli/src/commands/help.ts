@@ -19,6 +19,11 @@ export interface CommandSpec {
   readonly name: string;
   /** Définition en une ligne : ce que fait la commande, pour qui. */
   readonly brief: string;
+  /**
+   * Mots-clés de recherche pour la palette — toujours FR **et** EN, quelle que
+   * soit la langue active : l'utilisateur cherche dans la langue qui lui vient.
+   */
+  readonly keywords?: readonly string[];
   readonly usage: string;
   readonly options?: readonly (readonly [flag: string, doc: string])[];
   readonly examples?: readonly (readonly [cmd: string, doc: string])[];
@@ -43,6 +48,7 @@ export const GROUPS: readonly CommandGroup[] = [
           'Analyse le projet : dérives de tokens + RGAA 4.1, score /100',
           'Analyzes the project: token drift + RGAA 4.1, score /100',
         ),
+        keywords: ['scan', 'rapport', 'report', 'score', 'rgaa', 'wcag', 'accessibilité', 'accessibility', 'dérive', 'drift', 'tokens', 'ci', 'gate', 'html'],
         usage: 'axaraaudit audit [options]',
         options: [
           [
@@ -94,6 +100,7 @@ export const GROUPS: readonly CommandGroup[] = [
           'Valide des fichiers précis — pensé pour hooks IA et pre-commit',
           'Validates specific files — built for AI hooks and pre-commit',
         ),
+        keywords: ['valider', 'validate', 'hook', 'pre-commit', 'fichier', 'file', 'lint', 'agent'],
         usage: tr(
           'axaraaudit check <fichier...> [--format json]',
           'axaraaudit check <file...> [--format json]',
@@ -121,6 +128,7 @@ export const GROUPS: readonly CommandGroup[] = [
           'Applique les corrections — sûres par défaut, IA en option',
           'Applies fixes — safe by default, AI optional',
         ),
+        keywords: ['corriger', 'correction', 'réparer', 'repair', 'auto-fix', 'ia', 'ai', 'claude', 'write'],
         usage: 'axaraaudit fix [--write] [--all] [--ai]',
         options: [
           [
@@ -162,6 +170,7 @@ export const GROUPS: readonly CommandGroup[] = [
       {
         name: 'init',
         brief: tr('Génère un .auditorrc.json de démarrage', 'Generates a starter .auditorrc.json'),
+        keywords: ['setup', 'démarrer', 'start', 'projet', 'project', 'auditorrc', 'bootstrap'],
         usage: 'axaraaudit init [--force]',
         options: [['--force', tr('écrase un fichier existant', 'overwrites an existing file')]],
         next: ['audit'],
@@ -178,6 +187,7 @@ export const GROUPS: readonly CommandGroup[] = [
           "Simule un lecteur d'écran : entendez vos composants comme un utilisateur aveugle",
           'Simulates a screen reader: hear your components like a blind user',
         ),
+        keywords: ['lecteur', 'écran', 'screen reader', 'audio', 'aveugle', 'blind', 'aria', 'annonce', 'announce'],
         usage: tr('axaraaudit voice [fichier...]', 'axaraaudit voice [file...]'),
         examples: [
           [
@@ -193,6 +203,7 @@ export const GROUPS: readonly CommandGroup[] = [
           "Rejoue l'audit sur les derniers commits et trace l'évolution du score",
           'Replays the audit over recent commits and charts the score trend',
         ),
+        keywords: ['git', 'commits', 'tendance', 'trend', 'évolution', 'evolution', 'courbe', 'chart', 'historique'],
         usage: 'axaraaudit history [--limit <n>]',
         options: [['--limit <n>', tr('nombre de commits (défaut 15)', 'number of commits (default 15)')]],
         next: ['blame', 'fix'],
@@ -203,6 +214,7 @@ export const GROUPS: readonly CommandGroup[] = [
           'Attribue chaque dérive à son auteur (git blame)',
           'Attributes each drift to its author (git blame)',
         ),
+        keywords: ['git', 'auteur', 'author', 'responsable', 'qui', 'who', 'équipe', 'team'],
         usage: 'axaraaudit blame',
         next: ['fix'],
       },
@@ -212,6 +224,7 @@ export const GROUPS: readonly CommandGroup[] = [
           "L'audit commenté par un humoriste — cinglant mais bienveillant (clé IA requise)",
           'The audit narrated by a comedian — scathing but kind (AI key required)',
         ),
+        keywords: ['humour', 'humor', 'fun', 'comédien', 'comedian', 'critique', 'ia', 'ai'],
         usage: 'axaraaudit roast [--model <id>]',
         next: ['fix'],
       },
@@ -221,6 +234,7 @@ export const GROUPS: readonly CommandGroup[] = [
           'Rencontrez Axa, la mascotte, et la charte graphique du CLI',
           "Meet Axa, the mascot, and the CLI's visual identity",
         ),
+        keywords: ['mascotte', 'mascot', 'axa', 'charte', 'branding', 'couleurs', 'colors', 'démo', 'demo'],
         usage: 'axaraaudit hello [--demo]',
         options: [
           ['--demo', tr('rejoue un audit animé — idéal pour un GIF', 'replays an animated audit — great for a GIF')],
@@ -239,6 +253,7 @@ export const GROUPS: readonly CommandGroup[] = [
           'Panneau de réglages : jetons, langue, serveurs MCP — tout au même endroit',
           'Settings panel: tokens, language, MCP servers — all in one place',
         ),
+        keywords: ['paramètres', 'parametres', 'réglages', 'reglages', 'préférences', 'preferences', 'options', 'config', 'configuration', 'jeton', 'token', 'clé', 'key', 'mcp', 'langue', 'language', 'mise à jour', 'update', 'anthropic', 'cursor', 'claude'],
         usage: tr(
           'axaraaudit settings [set <clé> <valeur>] [mcp install|remove <client>]',
           'axaraaudit settings [set <key> <value>] [mcp install|remove <client>]',
@@ -262,6 +277,7 @@ export const GROUPS: readonly CommandGroup[] = [
           "Envoie un rapport d'audit au dashboard Pro (équipes, tendances)",
           'Sends an audit report to the Pro dashboard (teams, trends)',
         ),
+        keywords: ['upload', 'envoyer', 'send', 'cloud', 'dashboard', 'pro', 'rapport', 'report', 'équipe', 'team'],
         usage: tr('axaraaudit push [rapport.json] [options]', 'axaraaudit push [report.json] [options]'),
         options: [
           [
@@ -293,6 +309,7 @@ export const GROUPS: readonly CommandGroup[] = [
           'Enregistre un jeton Pro et/ou une clé Anthropic (active fix --ai)',
           'Stores a Pro token and/or an Anthropic key (enables fix --ai)',
         ),
+        keywords: ['jeton', 'token', 'clé', 'key', 'auth', 'authentification', 'authentication', 'compte', 'account', 'anthropic', 'pro', 'connexion'],
         usage: tr(
           'axaraaudit login [--token <jeton>] [--anthropic-key <clé>]',
           'axaraaudit login [--token <token>] [--anthropic-key <key>]',
@@ -312,11 +329,13 @@ export const GROUPS: readonly CommandGroup[] = [
       {
         name: 'logout',
         brief: tr('Supprime le jeton enregistré', 'Removes the stored token'),
+        keywords: ['déconnexion', 'deconnexion', 'sign out', 'jeton', 'token', 'supprimer', 'remove'],
         usage: 'axaraaudit logout',
       },
       {
         name: 'whoami',
         brief: tr("Affiche l'identité liée au jeton", 'Shows the identity tied to the token'),
+        keywords: ['compte', 'account', 'identité', 'identity', 'jeton', 'token', 'plan', 'organisation'],
         usage: 'axaraaudit whoami',
       },
       {
@@ -325,6 +344,7 @@ export const GROUPS: readonly CommandGroup[] = [
           'Complétion shell (Tab) pour axaraaudit et axa',
           'Shell (Tab) completion for axaraaudit and axa',
         ),
+        keywords: ['shell', 'bash', 'zsh', 'pwsh', 'powershell', 'tab', 'autocomplétion', 'autocomplete'],
         usage: 'axaraaudit completion <bash|zsh|pwsh>',
         examples: [
           ['eval "$(axaraaudit completion bash)"', tr('dans ~/.bashrc', 'in ~/.bashrc')],
@@ -344,6 +364,7 @@ export const GROUPS: readonly CommandGroup[] = [
           "Cette aide — ou l'aide détaillée d'une commande",
           "This help — or a command's detailed help",
         ),
+        keywords: ['aide', 'usage', 'docs', 'documentation', 'commandes', 'commands', 'options'],
         usage: tr('axaraaudit help [commande]', 'axaraaudit help [command]'),
         examples: [
           ['axaraaudit help fix', tr('options et exemples de `fix`', 'options and examples for `fix`')],
