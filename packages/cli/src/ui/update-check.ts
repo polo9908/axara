@@ -4,7 +4,7 @@
  * si le cache est périmé (> 24 h), un processus Node détaché interroge le
  * registre npm et réécrit le cache pour la prochaine fois. La notice
  * s'affiche au plus une fois par jour, jamais en CI ni hors TTY.
- * Désactivable : AXARA_NO_UPDATE_CHECK=1.
+ * Désactivable : AXARA_NO_UPDATE_CHECK=1 ou `axaraaudit settings` (updateCheck).
  */
 
 import { spawn } from 'node:child_process';
@@ -14,6 +14,7 @@ import { join } from 'node:path';
 import { paintFg, stderrLevel } from './ansi.js';
 import { BRAND } from './theme.js';
 import { tr } from '../i18n.js';
+import { readSettings } from '../config/settings.js';
 import { CLI_VERSION } from '../version.js';
 
 const CACHE_DIR = join(homedir(), '.axaraaudit');
@@ -85,6 +86,8 @@ function refreshInBackground(): void {
 export function maybeNotifyUpdate(): void {
   if (process.stdout.isTTY !== true || process.stderr.isTTY !== true) return;
   if (process.env['CI'] !== undefined || process.env['AXARA_NO_UPDATE_CHECK'] !== undefined) return;
+  // Préférence persistée (`axaraaudit settings`) — même effet que la variable d'env.
+  if (readSettings().updateCheck === false) return;
 
   const cache = readCache();
   if (cache !== null && isNewer(CLI_VERSION, cache.latest) && olderThanADay(cache.notifiedAt)) {

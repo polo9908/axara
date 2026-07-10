@@ -234,6 +234,29 @@ export const GROUPS: readonly CommandGroup[] = [
     title: tr('CONFIGURATION & COMPTE', 'SETTINGS & ACCOUNT'),
     commands: [
       {
+        name: 'settings',
+        brief: tr(
+          'Panneau de réglages : jetons, langue, serveurs MCP — tout au même endroit',
+          'Settings panel: tokens, language, MCP servers — all in one place',
+        ),
+        usage: tr(
+          'axaraaudit settings [set <clé> <valeur>] [mcp install|remove <client>]',
+          'axaraaudit settings [set <key> <value>] [mcp install|remove <client>]',
+        ),
+        options: [
+          ['--list', tr('état actuel sans panneau interactif (pipes, CI)', 'current state without the interactive panel (pipes, CI)')],
+          ['set lang fr|en|auto', tr('langue de l’interface, persistée', 'interface language, persisted')],
+          ['set update-check on|off', tr('notification de mise à jour quotidienne', 'daily update notice')],
+          ['mcp install|remove <client>', tr('claude-code · claude-desktop · cursor', 'claude-code · claude-desktop · cursor')],
+        ],
+        examples: [
+          ['axaraaudit settings', tr('panneau interactif (↑↓, Entrée, Échap)', 'interactive panel (↑↓, Enter, Esc)')],
+          ['axaraaudit settings mcp install claude-code', tr('branche le serveur MCP dans ce projet', 'wires the MCP server into this project')],
+          ['axaraaudit settings set lang en', tr('bascule le CLI en anglais', 'switches the CLI to English')],
+        ],
+        next: ['login', 'audit'],
+      },
+      {
         name: 'push',
         brief: tr(
           "Envoie un rapport d'audit au dashboard Pro (équipes, tendances)",
@@ -284,7 +307,7 @@ export const GROUPS: readonly CommandGroup[] = [
             tr('clé API Anthropic pour fix --ai et roast', 'Anthropic API key for fix --ai and roast'),
           ],
         ],
-        next: ['fix'],
+        next: ['fix', 'settings'],
       },
       {
         name: 'logout',
@@ -401,6 +424,7 @@ export function renderHelp(level: ColorLevel = stdoutLevel): string {
   lines.push('');
   lines.push(`  ${paintFg('✦', BRAND.violet, level)} ${paintFg(tr('Aide détaillée : ', 'Detailed help: '), BRAND.slate, level)}${paintFg(tr('axaraaudit help <commande>', 'axaraaudit help <command>'), BRAND.cyan, level)}${paintFg(tr('  ·  codes de sortie : 0 ok, 1 gate échoué, 2 erreur d\'usage', '  ·  exit codes: 0 ok, 1 gate failed, 2 usage error'), BRAND.slate, level)}`);
   lines.push(`  ${paintFg('✦', BRAND.violet, level)} ${paintFg(tr('Langue : ', 'Language: '), BRAND.slate, level)}${paintFg('--lang fr|en', BRAND.cyan, level)}${paintFg(tr('  ou  AXARA_LANG=fr|en  (défaut : locale système)', '  or  AXARA_LANG=fr|en  (default: system locale)'), BRAND.slate, level)}`);
+  lines.push(`  ${paintFg('✦', BRAND.violet, level)} ${paintFg(tr('Réglages : ', 'Settings: '), BRAND.slate, level)}${paintFg('axaraaudit settings', BRAND.cyan, level)}${paintFg(tr('  →  jetons, langue, serveurs MCP — panneau interactif', '  →  tokens, language, MCP servers — interactive panel'), BRAND.slate, level)}`);
   lines.push('');
   return lines.join('\n');
 }

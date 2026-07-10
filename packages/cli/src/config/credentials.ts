@@ -94,6 +94,28 @@ export function saveAnthropicKey(anthropicKey: string): string {
   });
 }
 
+/** Efface uniquement le jeton Pro, en préservant la clé Anthropic. */
+export function clearToken(): boolean {
+  const existing = readStoredCredentials();
+  if (existing?.token === undefined) return false;
+  if (existing.anthropicKey === undefined) return clearCredentials();
+  writeCredentials({ anthropicKey: existing.anthropicKey, savedAt: new Date().toISOString() });
+  return true;
+}
+
+/** Efface uniquement la clé Anthropic, en préservant le jeton Pro. */
+export function clearAnthropicKey(): boolean {
+  const existing = readStoredCredentials();
+  if (existing?.anthropicKey === undefined) return false;
+  if (existing.token === undefined) return clearCredentials();
+  writeCredentials({
+    token: existing.token,
+    ...(existing.apiUrl !== undefined ? { apiUrl: existing.apiUrl } : {}),
+    savedAt: new Date().toISOString(),
+  });
+  return true;
+}
+
 export function clearCredentials(): boolean {
   if (!existsSync(CREDENTIALS_FILE)) return false;
   rmSync(CREDENTIALS_FILE);

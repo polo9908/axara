@@ -5,12 +5,15 @@
  *   1. flag global `--lang fr|en` (lu directement sur process.argv, car les
  *      catalogues de messages sont évalués à l'import des modules) ;
  *   2. variable d'environnement `AXARA_LANG=fr|en` ;
- *   3. locale système (LC_ALL / LANG sur POSIX, Intl sinon — Windows inclus).
+ *   3. préférence persistée (`axaraaudit settings` → ~/.axaraaudit/settings.json) ;
+ *   4. locale système (LC_ALL / LANG sur POSIX, Intl sinon — Windows inclus).
  * Tout ce qui ne commence pas par « fr » tombe sur l'anglais.
  *
  * Usage : `tr('texte français', 'english text')` — le français d'abord,
  * partout, pour rester cohérent avec le code existant.
  */
+
+import { readSettings } from './config/settings.js';
 
 function detect(): 'fr' | 'en' {
   const argv = process.argv;
@@ -18,6 +21,7 @@ function detect(): 'fr' | 'en' {
   const fromFlag =
     at >= 0 ? argv[at + 1] : argv.find((a) => a.startsWith('--lang='))?.slice('--lang='.length);
   const fromEnv = process.env['AXARA_LANG'];
+  const fromSettings = readSettings().lang;
   // Intl reflète la vraie locale de l'OS ; LANG/LC_ALL ne servent que de
   // secours (sous Windows, un LANG=en_US hérité de Git Bash est fréquent
   // et ne dit rien de la langue réelle de l'utilisateur).
@@ -27,7 +31,7 @@ function detect(): 'fr' | 'en' {
   } catch {
     system = process.env['LC_ALL'] ?? process.env['LANG'];
   }
-  const raw = (fromFlag ?? fromEnv ?? system ?? 'en').toLowerCase();
+  const raw = (fromFlag ?? fromEnv ?? fromSettings ?? system ?? 'en').toLowerCase();
   return raw.startsWith('fr') ? 'fr' : 'en';
 }
 
