@@ -1,6 +1,6 @@
 {
   "name": "@axaraaudit/mcp-server",
-  "version": "0.2.2",
+  "version": "0.3.0",
   "description": "AxaraAudit MCP server: design-token rules, RGAA validation, project audit & drift auto-fix for AI agents (stdio, JSON-RPC 2.0)",
   "license": "MIT",
   "type": "module",
