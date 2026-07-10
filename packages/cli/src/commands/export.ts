@@ -100,7 +100,20 @@ export async function runExport(argv: readonly string[]): Promise<number> {
   }
 
   const pdf = renderPdf(payload);
-  writeFileSync(flags.out, pdf);
+  try {
+    writeFileSync(flags.out, pdf);
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException).code;
+    if (code === 'EBUSY' || code === 'EPERM' || code === 'EACCES') {
+      throw new ConfigError(
+        tr(
+          `Impossible d'écrire ${flags.out} — le fichier est probablement ouvert dans une visionneuse PDF. Fermez-le et réessayez, ou choisissez une autre destination avec --out.`,
+          `Cannot write ${flags.out} — the file is likely open in a PDF viewer. Close it and try again, or pick another destination with --out.`,
+        ),
+      );
+    }
+    throw error;
+  }
   process.stdout.write(
     green(tr(`✓ Rapport PDF écrit : ${flags.out}\n`, `✓ PDF report written: ${flags.out}\n`)),
   );
