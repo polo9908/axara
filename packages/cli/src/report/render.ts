@@ -42,6 +42,13 @@ function renderDriftIssue(issue: DriftIssue): string {
   return `    ${pos}  ${dim(issue.property)}  ${value}${target}${badge}`;
 }
 
+/** « Design system 96/100 · RGAA 12/100 » — la progression par source. */
+export function renderSubScores(payload: AuditPayload): string {
+  const parts = [`Design system ${payload.scores.design}/100`];
+  if (payload.rgaa.enabled) parts.push(`RGAA ${payload.scores.rgaa}/100`);
+  return parts.join(' · ');
+}
+
 export interface RenderPrettyOptions {
   /** `false` quand la révélation animée du score prend le relais (TTY). */
   readonly verdict?: boolean;
@@ -134,6 +141,7 @@ export function renderPretty(
     lines.push(RULE);
     const scoreColor = payload.score >= payload.gate.failUnder ? green : red;
     lines.push(`  ${bold('SCORE')}  ${scoreColor(bold(`${payload.score}/100`))}`);
+    lines.push(dim(`         ${renderSubScores(payload)}`));
     if (payload.gate.evaluated) {
       if (payload.gate.passed) {
         lines.push(green(bold('  GATE   PASSED')));

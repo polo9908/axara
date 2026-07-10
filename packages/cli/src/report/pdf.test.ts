@@ -5,10 +5,11 @@ import { renderPdf, toPdfString, wrapText } from './pdf.js';
 const PAYLOAD: AuditPayload = {
   tool: 'axaraaudit',
   toolVersion: '0.0.0-test',
-  payloadVersion: 1,
+  payloadVersion: 2,
   generatedAt: '2026-07-10T10:00:00.000Z',
   project: 'demo-projet',
   score: 72,
+  scores: { design: 97, rgaa: 74 },
   gate: { evaluated: true, passed: false, failUnder: 80, reasons: ['score 72 < 80'] },
   drift: {
     summary: { filesScanned: 3, totalIssues: 2, errors: 1, warnings: 1, autoFixable: 1 },

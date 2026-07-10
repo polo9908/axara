@@ -53,13 +53,20 @@ describe('applyFixes (TSX)', () => {
     expect(content).toBe(`const A = () => <span style={{ color: 'var(--color-brand)' }} />;`);
   });
 
-  it('safely skips a React numeric dimension (source `8` ≠ value `8px`)', () => {
+  it('fixes a React numeric dimension by quoting the replacement', () => {
     const src = `const A = () => <div style={{ padding: 8 }} />;`;
     const issues = analyzeTsx(src, index, { file: 'A.tsx' });
-    const { content, applied, skipped } = applyFixes(src, issues);
-    expect(applied).toHaveLength(0);
-    expect(skipped.length).toBeGreaterThan(0);
-    expect(content).toBe(src); // unchanged — no risky rewrite
+    const { content, applied } = applyFixes(src, issues);
+    expect(applied).toHaveLength(1);
+    expect(content).toBe(`const A = () => <div style={{ padding: 'var(--space-sm)' }} />;`);
+  });
+
+  it('leaves a numeric untouched when its digits do not match the source position', () => {
+    // `08` s'affiche normalisé `8px` mais le slice `8` ≠ `08` → aucun réécrit risqué.
+    const src = `const A = () => <div style={{ padding: 0x8 }} />;`;
+    const issues = analyzeTsx(src, index, { file: 'A.tsx' });
+    const { content } = applyFixes(src, issues);
+    expect(content).toBe(src);
   });
 });
 

@@ -164,6 +164,7 @@ a{color:var(--accent)}
 .gauge .num span{font-size:12px;color:var(--ink-2);letter-spacing:.2em}
 .verdict{flex:1;min-width:260px}
 .verdict p{margin:.3em 0;max-width:52ch}
+.verdict .subscores{color:var(--ink-2);font-size:.95em}
 .stamp{display:inline-block;font-family:var(--mono);font-weight:700;letter-spacing:.18em;text-transform:uppercase;font-size:15px;padding:10px 18px;border:3px solid;transform:rotate(-3.5deg);margin:10px 0 4px;
   -webkit-mask-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='60'%3E%3Cfilter id='n'%3E%3CfeTurbulence baseFrequency='.7'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 .92 0'/%3E%3C/filter%3E%3Crect width='120' height='60' filter='url(%23n)'/%3E%3C/svg%3E");mask-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='60'%3E%3Cfilter id='n'%3E%3CfeTurbulence baseFrequency='.7'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 .92 0'/%3E%3C/filter%3E%3Crect width='120' height='60' filter='url(%23n)'/%3E%3C/svg%3E")}
 .stamp.ok{color:var(--ok);border-color:var(--ok)}
@@ -251,6 +252,11 @@ footer{margin-top:64px;border-top:3px double var(--ink);padding-top:14px;display
       <div class="num" aria-hidden="true"><b>${payload.score}</b><span>/ 100</span></div>
     </div>
     <div class="verdict">
+      <p class="subscores">${tr('Design system :', 'Design system:')} <strong class="mono">${payload.scores.design}/100</strong>${
+        payload.rgaa.enabled
+          ? `${tr(' · RGAA : ', ' · RGAA: ')}<strong class="mono">${payload.scores.rgaa}/100</strong>`
+          : ''
+      }</p>
       ${
         payload.gate.evaluated
           ? `<span class="stamp ${gatePassed ? 'ok' : 'ko'}">${gatePassed ? tr('Seuil atteint', 'Threshold met') : tr('Seuil non atteint', 'Threshold not met')}</span>

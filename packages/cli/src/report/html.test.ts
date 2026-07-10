@@ -7,10 +7,11 @@ function payload(overrides: Partial<AuditPayload> = {}): AuditPayload {
   return {
     tool: 'axaraaudit',
     toolVersion: '0.0.0',
-    payloadVersion: 1,
+    payloadVersion: 2,
     generatedAt: '2026-07-03T12:00:00.000Z',
     project: 'demo',
     score: 76,
+    scores: { design: 98, rgaa: 90 },
     gate: { evaluated: true, passed: false, failUnder: 80, reasons: ['Score 76/100 sous le seuil requis (80).'] },
     drift: {
       summary: { filesScanned: 3, totalIssues: 1, errors: 1, warnings: 0, autoFixable: 0 },

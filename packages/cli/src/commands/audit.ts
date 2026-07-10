@@ -15,7 +15,7 @@ import { resolveToken } from '../config/credentials.js';
 import { tr } from '../i18n.js';
 import { fetchRemoteConfig, uploadReport, ApiError } from '../services/api.js';
 import { renderHtml } from '../report/html.js';
-import { renderPretty, dim, green, yellow } from '../report/render.js';
+import { renderPretty, renderSubScores, dim, green, yellow } from '../report/render.js';
 import { stderrLevel } from '../ui/ansi.js';
 import { renderBanner } from '../ui/banner.js';
 import { canReveal, revealScore } from '../ui/reveal.js';
@@ -193,7 +193,7 @@ export async function runAudit(argv: readonly string[]): Promise<number> {
     const outPath = flags.out ?? 'axara-report.html';
     writeFileSync(outPath, renderHtml(payload), 'utf8');
     process.stdout.write(renderPretty(payload, loaded.rootDir, { verdict: !animateScore }));
-    if (animateScore) await revealScore(payload.score, payload.gate);
+    if (animateScore) await revealScore(payload.score, payload.gate, renderSubScores(payload));
     log(green(tr(`✓ Rapport HTML écrit : ${outPath}`, `✓ HTML report written: ${outPath}`)));
     log(
       dim(
@@ -212,7 +212,7 @@ export async function runAudit(argv: readonly string[]): Promise<number> {
       process.stdout.write(`${json}\n`);
     } else {
       process.stdout.write(renderPretty(payload, loaded.rootDir, { verdict: !animateScore }));
-      if (animateScore) await revealScore(payload.score, payload.gate);
+      if (animateScore) await revealScore(payload.score, payload.gate, renderSubScores(payload));
     }
   }
 

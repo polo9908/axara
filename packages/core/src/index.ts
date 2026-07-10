@@ -99,10 +99,12 @@ export {
 } from './project/tokens-source.js';
 export {
   computeScore,
+  computeScoreBreakdown,
   evaluateGate,
   type FileRgaaFinding,
   type GateOptions,
   type GateResult,
+  type ScoreBreakdown,
 } from './project/score.js';
 export {
   PAYLOAD_VERSION,

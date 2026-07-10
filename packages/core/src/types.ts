@@ -62,4 +62,21 @@ export interface DriftIssue {
   /** Whether a safe, automatic fix is available. */
   readonly autoFixable: boolean;
   readonly suggestion?: DriftSuggestion;
+  /**
+   * Texte réellement présent dans le source quand il diffère de `value`
+   * normalisée — ex. un `16` numérique JSX rapporté comme `16px`. C'est lui
+   * que la passe de fix vérifie et remplace. / The literal exactly as written
+   * in source when it differs from the normalized `value` — e.g. a JSX bare
+   * numeric `16` reported as `16px`. This is what the fix pass verifies and
+   * replaces.
+   */
+  readonly sourceText?: string;
+  /**
+   * Remplacement exact à écrire à la position quand `suggestion.replacement`
+   * ne peut pas être inséré tel quel — ex. `'var(--x)'` quoté pour un
+   * numérique JSX. / Exact text to write at the position when
+   * `suggestion.replacement` cannot be inserted verbatim — e.g. a quoted
+   * `'var(--x)'` for a JSX bare numeric.
+   */
+  readonly fixText?: string;
 }

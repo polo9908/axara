@@ -27,11 +27,27 @@ const CANT_TELL_PENALTY = 1;
 const DRIFT_ERROR_PENALTY = 2;
 const DRIFT_WARNING_PENALTY = 0.5;
 
-export function computeScore(
-  drift: AuditSummary,
-  rgaaFindings: readonly FileRgaaFinding[],
-): number {
-  let penalty = drift.errors * DRIFT_ERROR_PENALTY + drift.warnings * DRIFT_WARNING_PENALTY;
+/** Penalty above which the scale switches from linear to asymptotic. */
+const LINEAR_PENALTY_LIMIT = 50;
+
+/**
+ * Penalty → score. Linear (`100 - penalty`, identical to the historical scale)
+ * down to 50, then a hyperbolic tail (`2500 / penalty`): a heavily failing
+ * project keeps a non-zero, still-moving score instead of being clamped flat
+ * at 0 — fixing violations must always be visible. The two branches share the
+ * same value and slope at the junction (C1-continuous).
+ */
+function penaltyToScore(penalty: number): number {
+  const raw = penalty <= LINEAR_PENALTY_LIMIT ? 100 - penalty : 2500 / penalty;
+  return Math.round(raw);
+}
+
+function driftPenalty(drift: AuditSummary): number {
+  return drift.errors * DRIFT_ERROR_PENALTY + drift.warnings * DRIFT_WARNING_PENALTY;
+}
+
+function rgaaPenalty(rgaaFindings: readonly FileRgaaFinding[]): number {
+  let penalty = 0;
   for (const { finding } of rgaaFindings) {
     if (finding.status === 'cantTell') {
       penalty += CANT_TELL_PENALTY;
@@ -40,7 +56,40 @@ export function computeScore(
         finding.impact === null ? UNKNOWN_IMPACT_PENALTY : IMPACT_PENALTY[finding.impact];
     }
   }
-  return Math.max(0, Math.round(100 - penalty));
+  return penalty;
+}
+
+/**
+ * The global score plus one sub-score per pressure source, on the same scale.
+ * Sub-scores make progress visible even when the global score saturates in
+ * the exponential tail (e.g. fixing every drift while RGAA debt dominates).
+ */
+export interface ScoreBreakdown {
+  readonly global: number;
+  /** Design-token drift only. */
+  readonly design: number;
+  /** RGAA findings only. */
+  readonly rgaa: number;
+}
+
+export function computeScoreBreakdown(
+  drift: AuditSummary,
+  rgaaFindings: readonly FileRgaaFinding[],
+): ScoreBreakdown {
+  const dp = driftPenalty(drift);
+  const rp = rgaaPenalty(rgaaFindings);
+  return {
+    global: penaltyToScore(dp + rp),
+    design: penaltyToScore(dp),
+    rgaa: penaltyToScore(rp),
+  };
+}
+
+export function computeScore(
+  drift: AuditSummary,
+  rgaaFindings: readonly FileRgaaFinding[],
+): number {
+  return computeScoreBreakdown(drift, rgaaFindings).global;
 }
 
 export interface GateOptions {

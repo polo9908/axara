@@ -57,18 +57,29 @@ this codebase.
 The contract is the **audit payload** — the exact JSON printed by
 `axaraaudit audit --format json`, defined in
 [`packages/core/src/project/payload.ts`](../packages/core/src/project/payload.ts)
-and versioned via `payloadVersion` (currently `1`). The same shape is
+and versioned via `payloadVersion` (currently `2`). The same shape is
 produced by the CLI, the MCP server, and accepted by the Pro API.
 
 ```
 AuditPayload {
   tool, toolVersion, payloadVersion, generatedAt, project,
   score,                     // 0–100
+  scores: { design, rgaa },  // per-source sub-scores, same 0–100 scale (v2)
   gate:  { evaluated, passed, failUnder, reasons },
   drift: { summary, tokenErrors, issues[] },   // each issue carries `fingerprint`
   rgaa:  { enabled, aggregate, findings[] }    // each finding carries `fingerprint`
 }
 ```
+
+**Score scale (v2).** The score maps the penalty sum linearly (`100 − penalty`)
+while the penalty stays ≤ 50, then switches to a hyperbolic tail
+(`2500 / penalty`, value- and slope-continuous at the junction). Scores ≥ 50
+are therefore identical to the historical v1 scale; below that, a heavily
+failing project keeps a small non-zero score that still moves when violations
+are fixed, instead of being clamped flat at 0. The `scores.design` /
+`scores.rgaa` sub-scores apply the same scale to each pressure source in
+isolation, so progress on one front stays visible even when the other
+dominates the global score.
 
 ### Violation fingerprints
 

@@ -70,6 +70,12 @@ export const AUDIT_PROJECT_OUTPUT = {
   project: z.string(),
   projectDir: z.string(),
   score: z.number().describe('Score de conformité 0–100.'),
+  scores: z
+    .object({
+      design: z.number().describe('Sous-score dérive design-tokens, 0–100.'),
+      rgaa: z.number().describe('Sous-score RGAA, 0–100.'),
+    })
+    .describe('Sous-scores par source — la progression reste visible même quand le score global sature.'),
   gate: z.object({
     passed: z.boolean(),
     failUnder: z.number(),
@@ -175,6 +181,7 @@ export async function runAuditProject(input: AuditProjectInput = {}) {
     project: result.payload.project,
     projectDir: cwd,
     score: result.payload.score,
+    scores: { design: result.payload.scores.design, rgaa: result.payload.scores.rgaa },
     gate: {
       passed: result.gate.passed,
       failUnder: result.gate.failUnder,

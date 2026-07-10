@@ -4,9 +4,11 @@
  * Applies design-drift remediations by their exact (line, column) location
  * rather than by blind text replacement, so we never touch an identical literal
  * elsewhere (a comment, an unrelated rule, …). Before replacing, we *verify* that
- * the source slice at the recorded position equals the reported value; anything
- * that doesn't match byte-for-byte is skipped (e.g. a React numeric `padding: 8`
- * whose normalized value is `8px` but whose source text is `8`).
+ * the source slice at the recorded position equals the reported literal —
+ * `issue.sourceText` when the source spelling differs from the normalized value
+ * (a React numeric `padding: 8` reported as `8px`), `issue.value` otherwise.
+ * Anything that doesn't match byte-for-byte is skipped. `issue.fixText` beats
+ * `suggestion.replacement` when the context needs it (quoted `'var(--x)'` in JSX).
  *
  * By default only `autoFixable` issues (exact-token matches) are applied — the
  * uncertain "nearest-token" suggestions are never written automatically.
@@ -88,14 +90,21 @@ export function applyFixes(
       skipped.push(issue);
       continue;
     }
+    // Le texte source peut différer de la valeur normalisée (JSX `16` → `16px`).
+    const sourceText = issue.sourceText ?? issue.value;
     const offset = lineStart + (issue.column - 1);
-    const slice = content.slice(offset, offset + issue.value.length);
+    const slice = content.slice(offset, offset + sourceText.length);
     // Verify the source actually holds the literal we think it does.
-    if (slice !== issue.value) {
+    if (slice !== sourceText) {
       skipped.push(issue);
       continue;
     }
-    candidates.push({ offset, length: issue.value.length, to: issue.suggestion.replacement, issue });
+    candidates.push({
+      offset,
+      length: sourceText.length,
+      to: issue.fixText ?? issue.suggestion.replacement,
+      issue,
+    });
   }
 
   // Apply from the end of the file backwards so earlier offsets stay valid.

@@ -17,7 +17,12 @@ import type { RgaaFinding } from '../rgaa/types.js';
 import type { DriftIssue } from '../types.js';
 import { loadRc, mergeRc, type AuditorRc, type AuditorRcInput, type LoadedRc } from './rc.js';
 import { buildAuditPayload, type AuditPayload } from './payload.js';
-import { computeScore, evaluateGate, type FileRgaaFinding, type GateResult } from './score.js';
+import {
+  computeScoreBreakdown,
+  evaluateGate,
+  type FileRgaaFinding,
+  type GateResult,
+} from './score.js';
 import { loadTokensSource, type TokensSource } from './tokens-source.js';
 import { tr } from '../i18n.js';
 import { collectFiles } from './walk.js';
@@ -133,8 +138,8 @@ export async function auditProject(options: ProjectAuditOptions): Promise<Projec
     }
   }
 
-  const score = computeScore(drift.summary, rgaaFindings);
-  const gate = evaluateGate(score, rgaaFindings, {
+  const scores = computeScoreBreakdown(drift.summary, rgaaFindings);
+  const gate = evaluateGate(scores.global, rgaaFindings, {
     failUnder: rc.ci.failUnder,
     blockOnCritical: rc.ci.blockOnCritical,
     priority: rc.rgaa.priority,
@@ -149,6 +154,7 @@ export async function auditProject(options: ProjectAuditOptions): Promise<Projec
     rgaaFilesAudited,
     rgaaFindings,
     gate,
+    scores,
     ciMode: options.ciMode === true,
   });
 

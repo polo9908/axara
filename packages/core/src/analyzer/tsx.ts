@@ -61,6 +61,7 @@ export function analyzeTsx(
     quoteOffset: number,
     property: string,
     text: string,
+    extras: Pick<LiteralOccurrence, 'sourceText' | 'quoteFix'> = {},
   ): void => {
     for (const occ of extractDimensions(text)) {
       const pos = positionAt(node, quoteOffset + occ.offset);
@@ -70,6 +71,7 @@ export function analyzeTsx(
         column: pos.column,
         property,
         value: occ.raw,
+        ...extras,
       };
       const issue = evaluateDimension(occurrence, index);
       if (issue) issues.push(issue);
@@ -109,8 +111,14 @@ export function analyzeTsx(
         pushColor(value, 1, cssProp, value.text);
         if (spacing) pushDimension(value, 1, cssProp, value.text);
       } else if (ts.isNumericLiteral(value) && spacing) {
-        // React renders a bare number on a length property as pixels.
-        pushDimension(value, 0, cssProp, `${value.text}px`);
+        // React renders a bare number on a length property as pixels. The
+        // source only holds `16` (not `16px`) and a bare `var(--x)` would be
+        // invalid JS: the fix must match the numeric text and quote its
+        // replacement.
+        pushDimension(value, 0, cssProp, `${value.text}px`, {
+          sourceText: value.text,
+          quoteFix: true,
+        });
       }
     }
   };

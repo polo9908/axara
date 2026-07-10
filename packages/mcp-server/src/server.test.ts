@@ -139,7 +139,7 @@ describe('A11yEngine MCP server', () => {
       score: number;
     };
     expect(payload.tool).toBe('a11yengine');
-    expect(payload.payloadVersion).toBe(1);
+    expect(payload.payloadVersion).toBe(2);
     expect(payload.score).toBe(audit.score);
     await client.close();
   });

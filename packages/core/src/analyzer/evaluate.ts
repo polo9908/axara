@@ -20,6 +20,21 @@ export interface LiteralOccurrence {
   readonly column: number;
   readonly property: string;
   readonly value: string;
+  /** Texte source quand il diffère de `value` (ex. `16` JSX pour `16px`). */
+  readonly sourceText?: string;
+  /** Entourer le remplacement de quotes (contexte JSX numérique). */
+  readonly quoteFix?: boolean;
+}
+
+/** Champs de fix propagés de l'occurrence vers l'issue. */
+function fixCarriers(
+  occurrence: LiteralOccurrence,
+  replacement: string,
+): Pick<DriftIssue, 'sourceText' | 'fixText'> {
+  return {
+    ...(occurrence.sourceText !== undefined ? { sourceText: occurrence.sourceText } : {}),
+    ...(occurrence.quoteFix === true ? { fixText: `'${replacement}'` } : {}),
+  };
 }
 
 function colorConfidence(distance: number): number {
@@ -135,6 +150,7 @@ export function evaluateDimension(
       message: `Hard-coded spacing "${value}" matches token ${exact.path}. Use ${suggestion.replacement}.`,
       autoFixable: true,
       suggestion,
+      ...fixCarriers(occurrence, suggestion.replacement),
     };
   }
 
@@ -178,5 +194,6 @@ export function evaluateDimension(
       : `Hard-coded spacing "${value}" has no close design token (nearest: ${nearest.token.path}).`,
     autoFixable: false,
     suggestion,
+    ...fixCarriers(occurrence, suggestion.replacement),
   };
 }

@@ -39,7 +39,13 @@ function bar(score: number): string {
   return out;
 }
 
-function frame(score: number, gate: RevealGate, mood: Mood, sparkleTick: number): string[] {
+function frame(
+  score: number,
+  gate: RevealGate,
+  mood: Mood,
+  sparkleTick: number,
+  subScores?: string,
+): string[] {
   const level = stdoutLevel;
   const m = mascotLines(mood, level);
   const ok = gate.evaluated ? gate.passed : score >= gate.failUnder;
@@ -63,7 +69,9 @@ function frame(score: number, gate: RevealGate, mood: Mood, sparkleTick: number)
   lines.push('');
   lines.push(pad(`${m[0] ?? ''}`));
   lines.push(pad(`${m[1] ?? ''}   ${paintFg('SCORE', BRAND.slate, level)}  ${bar(score)}  ${scoreText}`));
-  lines.push(pad(`${m[2] ?? ''}`));
+  lines.push(
+    pad(`${m[2] ?? ''}${subScores !== undefined ? `          ${paintFg(subScores, BRAND.slate, level)}` : ''}`),
+  );
   lines.push(pad(`${m[3] ?? ''}   ${spark(0)} ${verdict} ${spark(1)}`));
   const reason = gate.evaluated && !gate.passed ? gate.reasons[0] : undefined;
   lines.push(pad(`${m[4] ?? ''}   ${reason !== undefined ? paintFg(`· ${reason}`, BRAND.slate, level) : ''}`));
@@ -76,7 +84,12 @@ function easeOutCubic(t: number): number {
   return 1 - (1 - t) ** 3;
 }
 
-export async function revealScore(score: number, gate: RevealGate): Promise<void> {
+export async function revealScore(
+  score: number,
+  gate: RevealGate,
+  /** Ligne de sous-scores pré-rendue (ex. « Design system 96/100 · RGAA 12/100 »). */
+  subScores?: string,
+): Promise<void> {
   const out = process.stdout;
   const ok = gate.evaluated ? gate.passed : score >= gate.failUnder;
   const finalMood: Mood = ok ? 'happy' : 'shocked';
@@ -95,7 +108,8 @@ export async function revealScore(score: number, gate: RevealGate): Promise<void
   for (let i = 0; i <= STEPS; i += 1) {
     const value = Math.round(easeOutCubic(i / STEPS) * score);
     const mood: Mood = i === STEPS ? finalMood : i % 8 === 7 ? 'blink' : 'idle';
-    draw(frame(value, gate, mood, 0));
+    // Les sous-scores n'apparaissent qu'au plan final, pas pendant la montée.
+    draw(frame(value, gate, mood, 0, i === STEPS ? subScores : undefined));
     await sleep(i === STEPS ? 0 : 40);
   }
 
@@ -103,7 +117,7 @@ export async function revealScore(score: number, gate: RevealGate): Promise<void
   if (ok && gate.evaluated) {
     for (let s = 1; s <= 6; s += 1) {
       await sleep(120);
-      draw(frame(score, gate, 'happy', s));
+      draw(frame(score, gate, 'happy', s, subScores));
     }
   }
   out.write(cursor.show);

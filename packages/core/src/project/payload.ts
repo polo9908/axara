@@ -11,9 +11,12 @@ import type { AuditReport } from '../analyzer/audit.js';
 import type { RgaaFinding } from '../rgaa/types.js';
 import type { DriftIssue } from '../types.js';
 import { driftIdentity, fingerprintAll, rgaaIdentity } from './fingerprint.js';
-import type { GateResult, FileRgaaFinding } from './score.js';
+import type { GateResult, FileRgaaFinding, ScoreBreakdown } from './score.js';
 
-export const PAYLOAD_VERSION = 1;
+// v2 : courbe de score asymptotique (plus de clamp à 0) + sous-scores
+// `scores.{design,rgaa}`. / v2: asymptotic score curve (no flat clamp at 0)
+// plus `scores.{design,rgaa}` sub-scores.
+export const PAYLOAD_VERSION = 2;
 
 export interface RgaaAggregate {
   readonly filesAudited: number;
@@ -30,6 +33,11 @@ export interface AuditPayload {
   readonly generatedAt: string;
   readonly project: string;
   readonly score: number;
+  /** Sous-scores par source de pression, même échelle que `score`. */
+  readonly scores: {
+    readonly design: number;
+    readonly rgaa: number;
+  };
   readonly gate: {
     readonly evaluated: boolean;
     readonly passed: boolean;
@@ -88,6 +96,7 @@ export interface BuildAuditPayloadArgs {
   readonly rgaaFilesAudited: number;
   readonly rgaaFindings: readonly FileRgaaFinding[];
   readonly gate: GateResult;
+  readonly scores: ScoreBreakdown;
   readonly ciMode: boolean;
 }
 
@@ -109,6 +118,7 @@ export function buildAuditPayload(args: BuildAuditPayloadArgs): AuditPayload {
     generatedAt: new Date().toISOString(),
     project: args.project,
     score: args.gate.score,
+    scores: { design: args.scores.design, rgaa: args.scores.rgaa },
     gate: {
       evaluated: args.ciMode,
       passed: args.gate.passed,
