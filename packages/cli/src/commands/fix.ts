@@ -30,6 +30,7 @@ import { resolveAnthropicKey } from '../config/credentials.js';
 import { requestFileFix, ClaudeError, CLAUDE_MODEL } from '../services/claude.js';
 import { bold, cyan, dim, green, red, yellow } from '../report/render.js';
 import { tr } from '../i18n.js';
+import { canConfirm, confirmYesNo } from '../ui/confirm.js';
 import { printTips, type Tip } from '../ui/tips.js';
 
 const JSX_EXT = new Set(['.tsx', '.jsx']);
@@ -150,14 +151,26 @@ export async function runFix(argv: readonly string[]): Promise<number> {
   out(ai ? dim(tr('  (+ passe IA)', '  (+ AI pass)')) : '');
   out('\n\n');
 
+  // En prévisualisation, pas de ✓ vert : le développeur croirait la
+  // correction déjà écrite (et un ré-audit « inchangé » deviendrait un bug).
+  const mark = write ? green('✓') : yellow('≈');
   for (const fileResult of mech.fixed) {
     out(`  ${cyan(rel(fileResult.path))}\n`);
     for (const fix of fileResult.applied) {
-      out(`    ${green('✓')} ${dim(`L${fix.line}`)}  ${fix.from} → ${green(fix.to)}\n`);
+      out(`    ${mark} ${dim(`L${fix.line}`)}  ${fix.from} → ${green(fix.to)}\n`);
     }
   }
   if (totalApplied === 0)
     out(dim(tr('  (aucune correction mécanique applicable)\n', '  (no mechanical fix applicable)\n')));
+  else if (!write)
+    out(
+      yellow(
+        tr(
+          '\n  ⚠ Prévisualisation : aucun fichier n\'a été modifié.\n',
+          '\n  ⚠ Preview: no file has been modified.\n',
+        ),
+      ),
+    );
 
   // ── 2. Optional AI pass (RGAA + drifts the mechanics could not solve) ──
   let aiFixedFiles = 0;
@@ -334,15 +347,50 @@ export async function runFix(argv: readonly string[]): Promise<number> {
   else out(tr(`, ${String(remaining.length)} restante(s)`, `, ${String(remaining.length)} remaining`));
   out('\n');
 
+  // ── TTY : proposer d'écrire la prévisualisation sans retaper la commande ──
+  // C'est le chemin de la palette (qui lance `fix` nu) : sans cette étape, le
+  // développeur voit la liste, croit avoir corrigé, et ré-audite pour rien.
+  // Passe mécanique uniquement : rejouer --ai rappellerait l'API.
+  let confirmedWrite = false;
+  if (!write && !ai && totalApplied > 0 && canConfirm()) {
+    out('\n');
+    const apply = await confirmYesNo(
+      tr(
+        `Appliquer ces ${totalApplied} correction(s) maintenant ?`,
+        `Apply these ${totalApplied} fix(es) now?`,
+      ),
+    );
+    if (apply) {
+      const written = fixProject({
+        cwd: process.cwd(),
+        ...(values.config !== undefined ? { configPath: values.config } : {}),
+        ...(values.tokens !== undefined ? { tokensPath: values.tokens } : {}),
+        write: true,
+        all,
+        minConfidence,
+      });
+      confirmedWrite = true;
+      out(
+        green(
+          tr(
+            `  ✓ ${written.totalApplied} correction(s) écrite(s).\n`,
+            `  ✓ ${written.totalApplied} fix(es) written.\n`,
+          ),
+        ),
+      );
+    }
+  }
+  const wrote = write || confirmedWrite;
+
   // ── Tips contextuels : la prochaine étape logique selon le résultat ──
   const tips: Tip[] = [];
-  if (!write && (totalApplied > 0 || aiFixedFiles > 0)) {
+  if (!wrote && (totalApplied > 0 || aiFixedFiles > 0)) {
     tips.push({
       cmd: `axaraaudit fix${all ? ' --all' : ''}${ai ? ' --ai' : ''} --write`,
       why: tr('appliquez ce que vous venez de prévisualiser', 'apply what you just previewed'),
     });
   }
-  if (write && (totalApplied > 0 || aiFixedFiles > 0)) {
+  if (wrote && (totalApplied > 0 || aiFixedFiles > 0)) {
     tips.push({
       cmd: 'axaraaudit audit',
       why: tr('mesurez le nouveau score après corrections', 'measure the new score after the fixes'),
@@ -350,13 +398,13 @@ export async function runFix(argv: readonly string[]): Promise<number> {
   }
   if (!all && remaining.some((issue) => issue.match === 'nearest-token')) {
     tips.push({
-      cmd: `axaraaudit fix --all${write ? ' --write' : ''}`,
+      cmd: `axaraaudit fix --all${wrote ? ' --write' : ''}`,
       why: tr('inclut aussi les tokens proches (confiance ≥ 0.7)', 'also includes close tokens (confidence ≥ 0.7)'),
     });
   }
   if (!ai) {
     tips.push({
-      cmd: `axaraaudit fix --ai${write ? ' --write' : ''}`,
+      cmd: `axaraaudit fix --ai${wrote ? ' --write' : ''}`,
       why: tr(
         'corrige aussi le RGAA (alt, labels, titres…) et les valeurs sans token via Claude',
         'also fixes RGAA issues (alt, labels, headings…) and token-less values via Claude',
