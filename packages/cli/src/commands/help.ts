@@ -193,6 +193,50 @@ export const GROUPS: readonly CommandGroup[] = [
         next: ['audit'],
       },
       {
+        name: 'fix-all',
+        brief: tr(
+          'Corrige tout en une commande : design system + RGAA + tabulation (IA incluse)',
+          'Fixes everything in one command: design system + RGAA + keyboard (AI included)',
+        ),
+        keywords: ['tout', 'all', 'corriger', 'correction', 'auto', 'automatique', 'automatic', 'complet', 'complete', 'ia', 'ai', 'claude', 'modèle', 'model', 'rgaa', 'tabulation', 'clavier', 'keyboard', 'one-shot'],
+        usage: 'axaraaudit fix-all [--model <id>]',
+        options: [
+          [
+            '--model <id>',
+            tr(
+              'modèle IA — sans ce flag, choix interactif (défaut : claude-opus-4-8)',
+              'AI model — without this flag, interactive choice (default: claude-opus-4-8)',
+            ),
+          ],
+          [
+            '--min-confidence <0..1>',
+            tr('seuil des tokens proches (défaut 0.7)', 'near-match token threshold (default 0.7)'),
+          ],
+          [
+            tr('--config <chemin>', '--config <path>'),
+            tr('fichier .auditorrc.json explicite', 'explicit .auditorrc.json file'),
+          ],
+          [
+            tr('--tokens <chemin>', '--tokens <path>'),
+            tr('fichier de tokens DTCG (bypass de la config)', 'DTCG tokens file (bypasses the config)'),
+          ],
+        ],
+        examples: [
+          [
+            'axaraaudit fix-all',
+            tr(
+              'choix du modèle, puis correction complète avec progression x/N',
+              'model choice, then full fix with x/N progress',
+            ),
+          ],
+          [
+            'axaraaudit fix-all --model claude-sonnet-5',
+            tr('sans question : modèle imposé, correction directe', 'no question: fixed model, direct fix'),
+          ],
+        ],
+        next: ['audit'],
+      },
+      {
         name: 'init',
         brief: tr('Génère un .auditorrc.json de démarrage', 'Generates a starter .auditorrc.json'),
         keywords: ['setup', 'démarrer', 'start', 'projet', 'project', 'auditorrc', 'bootstrap'],

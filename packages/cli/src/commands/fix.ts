@@ -33,8 +33,8 @@ import { tr } from '../i18n.js';
 import { canConfirm, confirmYesNo } from '../ui/confirm.js';
 import { printTips, type Tip } from '../ui/tips.js';
 
-const JSX_EXT = new Set(['.tsx', '.jsx']);
-const HTML_EXT = new Set(['.html', '.htm']);
+export const JSX_EXT = new Set(['.tsx', '.jsx']);
+export const HTML_EXT = new Set(['.html', '.htm']);
 
 function out(text: string): void {
   process.stdout.write(text);
@@ -57,7 +57,7 @@ function renderLineDiff(before: string, after: string, maxLines = 24): string {
   return lines.join('\n');
 }
 
-function describeDriftIssue(issue: DriftIssue): string {
+export function describeDriftIssue(issue: DriftIssue): string {
   const suggestion =
     issue.suggestion !== undefined
       ? tr(
@@ -71,7 +71,7 @@ function describeDriftIssue(issue: DriftIssue): string {
   );
 }
 
-function describeRgaaFinding(finding: RgaaFinding): string {
+export function describeRgaaFinding(finding: RgaaFinding): string {
   const impact = finding.impact ?? tr('impact inconnu', 'unknown impact');
   const sample = finding.occurrences[0]?.html.slice(0, 160) ?? '';
   return tr(
@@ -80,7 +80,7 @@ function describeRgaaFinding(finding: RgaaFinding): string {
   );
 }
 
-function tokensCatalog(tokens: readonly DesignToken[]): string {
+export function tokensCatalog(tokens: readonly DesignToken[]): string {
   return tokens
     .filter((token) => token.category !== null)
     .map((token) => `${token.cssVar}: ${token.value}`)

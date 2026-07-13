@@ -12,6 +12,7 @@ import { ApiError } from './services/api.js';
 import { runAudit } from './commands/audit.js';
 import { runCheck } from './commands/check.js';
 import { runFix } from './commands/fix.js';
+import { runFixAll } from './commands/fix-all.js';
 import { runVoice } from './commands/voice.js';
 import { runBlame, runHistory } from './commands/history.js';
 import { runRoast } from './commands/roast.js';
@@ -48,6 +49,8 @@ async function dispatch(command: string, rest: readonly string[]): Promise<numbe
       return runCheck(rest);
     case 'fix':
       return runFix(rest);
+    case 'fix-all':
+      return runFixAll(rest);
     case 'voice':
       return runVoice(rest);
     case 'history':
