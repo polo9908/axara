@@ -154,6 +154,52 @@ export function frameRows(frame: string, columns: number): number {
   return rows;
 }
 
+/**
+ * Tronque `text` à `maxWidth` colonnes visibles en préservant les séquences
+ * ANSI (jamais coupées en leur milieu). Un `reset` final referme tout style
+ * resté ouvert au point de coupe.
+ */
+export function clipLine(text: string, maxWidth: number): string {
+  if (displayWidth(text) <= maxWidth) return text;
+  const ansi = new RegExp(`${ESC}\\[[0-9;?]*[A-Za-z]`, 'y');
+  let out = '';
+  let width = 0;
+  let i = 0;
+  let hadAnsi = false;
+  while (i < text.length) {
+    ansi.lastIndex = i;
+    const m = ansi.exec(text);
+    if (m !== null) {
+      out += m[0];
+      hadAnsi = true;
+      i += m[0].length;
+      continue;
+    }
+    if (width >= maxWidth) break;
+    const ch = String.fromCodePoint(text.codePointAt(i) as number);
+    out += ch;
+    width += 1;
+    i += ch.length;
+  }
+  return hadAnsi ? `${out}${ESC}[0m` : out;
+}
+
+/**
+ * Prépare un cadre pour un redraw fiable : chaque ligne est tronquée à
+ * `columns - 1` pour qu'aucune n'atteigne le bord du terminal. C'est la seule
+ * façon d'avoir un `cursor.up(n)` exact partout : les terminaux divergent sur
+ * l'enroulement (xterm diffère le wrap en fin de ligne, conhost non, et les
+ * caractères ambigus ↑↓✦ peuvent être rendus plus larges que comptés) — toute
+ * ligne enroulée de façon imprévue décale l'effacement et duplique l'en-tête.
+ */
+export function clipFrame(frame: string, columns: number): string {
+  const max = Math.max(1, columns - 1);
+  return frame
+    .split('\n')
+    .map((line) => clipLine(line, max))
+    .join('\n');
+}
+
 // ── Curseur (animations) ───────────────────────────────────────────────────
 
 export const cursor = {

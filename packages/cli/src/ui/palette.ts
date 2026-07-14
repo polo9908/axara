@@ -7,7 +7,7 @@
  * mode raw de stdin + redraw ANSI.
  */
 
-import { boldOn, cursor, frameRows, gradient, paintFg, reset, stdoutLevel, type ColorLevel } from './ansi.js';
+import { boldOn, clipFrame, cursor, gradient, paintFg, reset, stdoutLevel, type ColorLevel } from './ansi.js';
 import { BRAND } from './theme.js';
 import { tr } from '../i18n.js';
 import { GROUPS, type CommandSpec } from '../commands/help.js';
@@ -118,11 +118,14 @@ export function runPalette(initialQuery = '', opts: PaletteOptions = {}): Promis
   const draw = (): void => {
     const matches = filterCommands(query);
     if (selected >= matches.length) selected = Math.max(0, matches.length - 1);
-    const frame = render(query, matches, selected, level, opts.hint);
+    // Tronqué à la largeur du terminal : aucune ligne ne s'enroule, donc le
+    // nombre de rangées est exactement le nombre de `\n` — quel que soit le
+    // comportement de wrap du terminal (conhost, xterm…).
+    const frame = clipFrame(render(query, matches, selected, level, opts.hint), process.stdout.columns ?? 80);
     const erase =
       renderedLines > 0 ? `${cursor.up(renderedLines)}${cursor.toColumn0}${cursor.eraseDown}` : '';
     process.stdout.write(`${erase}${frame}`);
-    renderedLines = frameRows(frame, process.stdout.columns ?? 80);
+    renderedLines = frame.split('\n').length - 1; // le cadre se termine par \n
   };
 
   return new Promise((resolvePick) => {

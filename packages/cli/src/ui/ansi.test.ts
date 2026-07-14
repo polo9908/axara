@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { displayWidth, frameRows, paintFg } from './ansi.js';
+import { clipFrame, clipLine, displayWidth, frameRows, paintFg } from './ansi.js';
 import { BRAND } from './theme.js';
 
 describe('displayWidth', () => {
@@ -30,5 +30,39 @@ describe('frameRows', () => {
   it('mesure la largeur hors séquences ANSI avant enroulement', () => {
     const line = paintFg('x'.repeat(25), BRAND.cyan, 'truecolor');
     expect(frameRows(`${line}\n`, 10)).toBe(3); // les codes ANSI ne comptent pas
+  });
+});
+
+describe('clipLine', () => {
+  it('rend le texte intact quand il tient', () => {
+    expect(clipLine('court', 10)).toBe('court');
+  });
+
+  it('tronque le texte brut à la largeur visible', () => {
+    expect(clipLine('abcdefghij', 4)).toBe('abcd');
+  });
+
+  it('préserve les séquences ANSI et referme le style au point de coupe', () => {
+    const painted = paintFg('abcdefghij', BRAND.cyan, 'truecolor');
+    const clipped = clipLine(painted, 4);
+    expect(displayWidth(clipped)).toBe(4);
+    expect(clipped.replace(/\[[0-9;?]*[A-Za-z]/g, '')).toBe('abcd');
+    expect(clipped.endsWith('[0m')).toBe(true);
+  });
+
+  it('coupe en points de code, jamais au milieu d’un surrogate pair', () => {
+    expect(clipLine('a𝒳b', 2)).toBe('a𝒳');
+  });
+});
+
+describe('clipFrame', () => {
+  it('tronque chaque ligne à columns - 1 : plus aucun enroulement possible', () => {
+    const frame = `${'x'.repeat(30)}\ncourt\n`;
+    const clipped = clipFrame(frame, 10);
+    const lines = clipped.split('\n');
+    expect(lines[0]).toBe('x'.repeat(9));
+    expect(lines[1]).toBe('court');
+    // Après troncature, le nombre de rangées == nombre de lignes, sur tout terminal.
+    expect(frameRows(clipped, 10)).toBe(2);
   });
 });

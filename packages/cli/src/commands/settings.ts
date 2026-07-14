@@ -15,7 +15,7 @@
  */
 
 import { homedir } from 'node:os';
-import { boldOn, cursor, gradient, paintFg, reset, stdoutLevel, type ColorLevel } from '../ui/ansi.js';
+import { boldOn, clipFrame, cursor, gradient, paintFg, reset, stdoutLevel, type ColorLevel } from '../ui/ansi.js';
 import { BRAND } from '../ui/theme.js';
 import { tr } from '../i18n.js';
 import {
@@ -324,7 +324,8 @@ function runPanel(): Promise<number> {
     const sections = buildSections(level);
     const rowCount = sections.reduce((n, s) => n + s.rows.length, 0);
     if (state.selected >= rowCount) state.selected = Math.max(0, rowCount - 1);
-    const frame = renderPanel(sections, state, level);
+    // Tronqué à la largeur du terminal : aucun enroulement, comptage exact.
+    const frame = clipFrame(renderPanel(sections, state, level), process.stdout.columns ?? 80);
     const erase =
       renderedLines > 0 ? `${cursor.up(renderedLines)}${cursor.toColumn0}${cursor.eraseDown}` : '';
     process.stdout.write(`${erase}${frame}`);

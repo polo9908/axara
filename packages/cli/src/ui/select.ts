@@ -5,7 +5,7 @@
  * TTY interactifs : l'appelant vérifie `canSelect()` (sinon, prendre le défaut).
  */
 
-import { boldOn, cursor, frameRows, paintFg, reset, stdoutLevel, type ColorLevel } from './ansi.js';
+import { boldOn, clipFrame, cursor, paintFg, reset, stdoutLevel, type ColorLevel } from './ansi.js';
 import { BRAND } from './theme.js';
 
 const ESC = '';
@@ -64,11 +64,12 @@ export function selectOption(
   let renderedLines = 0;
 
   const draw = (): void => {
-    const frame = render(title, choices, selected, level);
+    // Tronqué à la largeur du terminal : aucun enroulement, comptage exact.
+    const frame = clipFrame(render(title, choices, selected, level), process.stdout.columns ?? 80);
     const erase =
       renderedLines > 0 ? `${cursor.up(renderedLines)}${cursor.toColumn0}${cursor.eraseDown}` : '';
     process.stdout.write(`${erase}${frame}`);
-    renderedLines = frameRows(frame, process.stdout.columns ?? 80);
+    renderedLines = frame.split('\n').length - 1; // le cadre se termine par \n
   };
 
   return new Promise((resolvePick) => {
