@@ -5,7 +5,7 @@
  * TTY interactifs : l'appelant vérifie `canSelect()` (sinon, prendre le défaut).
  */
 
-import { boldOn, cursor, paintFg, reset, stdoutLevel, type ColorLevel } from './ansi.js';
+import { boldOn, cursor, frameRows, paintFg, reset, stdoutLevel, type ColorLevel } from './ansi.js';
 import { BRAND } from './theme.js';
 
 const ESC = '';
@@ -68,7 +68,7 @@ export function selectOption(
     const erase =
       renderedLines > 0 ? `${cursor.up(renderedLines)}${cursor.toColumn0}${cursor.eraseDown}` : '';
     process.stdout.write(`${erase}${frame}`);
-    renderedLines = frame.split('\n').length - 1;
+    renderedLines = frameRows(frame, process.stdout.columns ?? 80);
   };
 
   return new Promise((resolvePick) => {

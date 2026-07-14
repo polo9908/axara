@@ -7,7 +7,7 @@
  * mode raw de stdin + redraw ANSI.
  */
 
-import { boldOn, cursor, gradient, paintFg, reset, stdoutLevel, type ColorLevel } from './ansi.js';
+import { boldOn, cursor, frameRows, gradient, paintFg, reset, stdoutLevel, type ColorLevel } from './ansi.js';
 import { BRAND } from './theme.js';
 import { tr } from '../i18n.js';
 import { GROUPS, type CommandSpec } from '../commands/help.js';
@@ -122,7 +122,7 @@ export function runPalette(initialQuery = '', opts: PaletteOptions = {}): Promis
     const erase =
       renderedLines > 0 ? `${cursor.up(renderedLines)}${cursor.toColumn0}${cursor.eraseDown}` : '';
     process.stdout.write(`${erase}${frame}`);
-    renderedLines = frame.split('\n').length - 1;
+    renderedLines = frameRows(frame, process.stdout.columns ?? 80);
   };
 
   return new Promise((resolvePick) => {

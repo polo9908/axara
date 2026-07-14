@@ -129,6 +129,31 @@ export function gradientBlock(
   });
 }
 
+// ── Mesure de largeur (redraw sans résidus) ─────────────────────────────────
+
+const ANSI_PATTERN = new RegExp(`${ESC}\\[[0-9;?]*[A-Za-z]`, 'g');
+
+/** Largeur affichée : hors séquences ANSI, comptée en points de code. */
+export function displayWidth(text: string): number {
+  return [...text.replace(ANSI_PATTERN, '')].length;
+}
+
+/**
+ * Nombre de lignes *visuelles* qu'occupe `frame` sur un terminal de `columns`
+ * colonnes — une ligne plus longue que la largeur s'enroule sur plusieurs
+ * rangées. Indispensable au redraw : un `cursor.up(n)` calé sur les seuls `\n`
+ * sous-compte les lignes enroulées, l'effacement ne remonte pas assez haut et
+ * laisse des résidus (en-tête « dupliqué » à chaque flèche).
+ */
+export function frameRows(frame: string, columns: number): number {
+  const cols = Math.max(1, columns);
+  const lines = frame.split('\n');
+  if (lines[lines.length - 1] === '') lines.pop(); // \n final → dernière entrée vide
+  let rows = 0;
+  for (const line of lines) rows += Math.max(1, Math.ceil(displayWidth(line) / cols));
+  return rows;
+}
+
 // ── Curseur (animations) ───────────────────────────────────────────────────
 
 export const cursor = {
