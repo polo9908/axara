@@ -91,6 +91,43 @@ describe('auditProject', () => {
     expect(result.gate.failUnder).toBe(100);
   });
 
+  it('degrades to RGAA-only in a project without any design system', async () => {
+    const bare = mkdtempSync(join(tmpdir(), 'axaraaudit-run-bare-'));
+    try {
+      writeFileSync(join(bare, 'App.tsx'), 'export const A = () => <img src="a.png" />;\n');
+      const result = await auditProject({ cwd: bare, tool: 't', toolVersion: '0' });
+      expect(result.tokensSource.origin).toBe('none');
+      expect(result.drift.summary.totalIssues).toBe(0);
+      expect(result.drift.summary.filesScanned).toBe(1);
+      expect(result.payload.designSystem).toEqual({ enabled: false, origin: 'none' });
+      expect(result.rgaaFindings.some(({ finding }) => finding.criterion === '1.1')).toBe(true);
+    } finally {
+      rmSync(bare, { recursive: true, force: true });
+    }
+  });
+
+  it('honours an explicit "tokens": false without auto-extracting CSS vars', async () => {
+    // The project HAS enough CSS vars for zero-config, but the user opted out.
+    writeFileSync(
+      join(dir, 'src', 'vars.css'),
+      ':root { --a: #111111; --b: #222222; --c: 4px; }\n',
+    );
+    writeFileSync(
+      join(dir, '.auditorrc.json'),
+      JSON.stringify({ tokens: false }),
+    );
+    const result = await auditProject({ cwd: dir, tool: 't', toolVersion: '0' });
+    expect(result.tokensSource.origin).toBe('none');
+    expect(result.drift.summary.totalIssues).toBe(0);
+    expect(result.payload.designSystem?.enabled).toBe(false);
+  });
+
+  it('still fails hard on an explicit --tokens path that does not exist', async () => {
+    await expect(
+      auditProject({ cwd: dir, tool: 't', toolVersion: '0', tokensPath: 'nope.dtcg.json' }),
+    ).rejects.toThrow(/introuvable|not found/);
+  });
+
   it('prefers inline tokens over the project file', async () => {
     const result = await auditProject({
       cwd: dir,

@@ -9,6 +9,7 @@
 
 import { readFileSync } from 'node:fs';
 import { extname } from 'node:path';
+import { tr } from '../i18n.js';
 import { extractCssVarTokens, type CssSource } from '../tokens/css-vars.js';
 import { ConfigError, resolveRcTokensPath, type LoadedRc } from './rc.js';
 
@@ -18,7 +19,7 @@ const MIN_AUTO_TOKENS = 3;
 
 export interface TokensSource {
   readonly json: string;
-  readonly origin: 'file' | 'auto';
+  readonly origin: 'file' | 'auto' | 'none';
   /** Human-readable description of where the tokens came from. */
   readonly detail: string;
   /** Set when origin === 'auto' — lets callers build a localized message. */
@@ -31,11 +32,26 @@ export interface ScannedFile {
   readonly content: string;
 }
 
+/** Source used when the project explicitly or effectively has no design system. */
+function noneSource(detail: string): TokensSource {
+  return { json: '{}', origin: 'none', detail };
+}
+
 export function loadTokensSource(
   loaded: LoadedRc,
   override: string | undefined,
   files: readonly ScannedFile[],
 ): TokensSource {
+  // Explicit opt-out ("tokens": false): no drift baseline, and no CSS-vars
+  // auto-extraction either — the user said there is no design system.
+  if (override === undefined && loaded.rc.tokens === false) {
+    throw new ConfigError(
+      tr(
+        'Design system désactivé ("tokens": false).',
+        'Design system disabled ("tokens": false).',
+      ),
+    );
+  }
   try {
     const path = resolveRcTokensPath(loaded, override);
     return {
@@ -60,5 +76,34 @@ export function loadTokensSource(
       count: extraction.count,
       sourceFileCount: extraction.sourceFiles.length,
     };
+  }
+}
+
+/**
+ * Lenient variant: a project without any design system (no DTCG file, too few
+ * CSS vars, or an explicit `"tokens": false`) degrades to an RGAA-only source
+ * instead of failing. An explicit `--tokens` override that cannot be loaded
+ * remains a user error and rethrows.
+ */
+export function resolveTokensSourceLenient(
+  loaded: LoadedRc,
+  override: string | undefined,
+  files: readonly ScannedFile[],
+): TokensSource {
+  try {
+    return loadTokensSource(loaded, override, files);
+  } catch (error) {
+    if (!(error instanceof ConfigError) || override !== undefined) throw error;
+    return noneSource(
+      loaded.rc.tokens === false
+        ? tr(
+            'design system désactivé ("tokens": false) — audit RGAA uniquement',
+            'design system disabled ("tokens": false) — RGAA-only audit',
+          )
+        : tr(
+            'aucun design system détecté — audit RGAA uniquement',
+            'no design system detected — RGAA-only audit',
+          ),
+    );
   }
 }

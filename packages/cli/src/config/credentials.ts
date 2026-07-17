@@ -9,6 +9,7 @@ import { homedir } from 'node:os';
 import { join } from 'node:path';
 
 export const TOKEN_ENV_VAR = 'AUDITOR_TOKEN';
+export const FIGMA_TOKEN_ENV_VAR = 'FIGMA_TOKEN';
 
 const CREDENTIALS_DIR = join(homedir(), '.axaraaudit');
 const CREDENTIALS_FILE = join(CREDENTIALS_DIR, 'credentials.json');
@@ -18,6 +19,8 @@ export interface StoredCredentials {
   readonly apiUrl?: string;
   /** Anthropic API key for the opt-in AI fix pass (`fix --ai`). */
   readonly anthropicKey?: string;
+  /** Figma personal access token for `init --from-figma` / the wizard import. */
+  readonly figmaToken?: string;
   readonly savedAt: string;
 }
 
@@ -36,6 +39,9 @@ export function readStoredCredentials(): StoredCredentials | null {
       ...(typeof parsed.apiUrl === 'string' ? { apiUrl: parsed.apiUrl } : {}),
       ...(typeof parsed.anthropicKey === 'string' && parsed.anthropicKey !== ''
         ? { anthropicKey: parsed.anthropicKey }
+        : {}),
+      ...(typeof parsed.figmaToken === 'string' && parsed.figmaToken !== ''
+        ? { figmaToken: parsed.figmaToken }
         : {}),
       savedAt: typeof parsed.savedAt === 'string' ? parsed.savedAt : '',
     };
@@ -68,51 +74,72 @@ export function resolveAnthropicKey(env: NodeJS.ProcessEnv = process.env): strin
   return readStoredCredentials()?.anthropicKey ?? null;
 }
 
+/** Figma token for the variables import: FIGMA_TOKEN env var > credentials file. */
+export function resolveFigmaToken(env: NodeJS.ProcessEnv = process.env): string | null {
+  const fromEnv = env[FIGMA_TOKEN_ENV_VAR];
+  if (typeof fromEnv === 'string' && fromEnv.trim() !== '') return fromEnv.trim();
+  return readStoredCredentials()?.figmaToken ?? null;
+}
+
 function writeCredentials(payload: StoredCredentials): string {
   mkdirSync(CREDENTIALS_DIR, { recursive: true });
   writeFileSync(CREDENTIALS_FILE, `${JSON.stringify(payload, null, 2)}\n`, { mode: 0o600 });
   return CREDENTIALS_FILE;
 }
 
+type SecretField = 'token' | 'anthropicKey' | 'figmaToken';
+const SECRET_FIELDS: readonly SecretField[] = ['token', 'anthropicKey', 'figmaToken'];
+
+/**
+ * Réécrit le fichier avec `patch` fusionné sur l'existant (undefined = champ
+ * supprimé). Le fichier disparaît quand plus aucun secret ne subsiste.
+ */
+function updateCredentials(
+  patch: Partial<Record<SecretField | 'apiUrl', string | undefined>>,
+): string {
+  const existing = readStoredCredentials() ?? { savedAt: '' };
+  const merged: Record<string, string> = {};
+  for (const field of [...SECRET_FIELDS, 'apiUrl'] as const) {
+    const value = field in patch ? patch[field] : existing[field];
+    if (value !== undefined) merged[field] = value;
+  }
+  if (SECRET_FIELDS.every((field) => merged[field] === undefined)) {
+    clearCredentials();
+    return CREDENTIALS_FILE;
+  }
+  return writeCredentials({ ...merged, savedAt: new Date().toISOString() });
+}
+
 export function saveCredentials(token: string, apiUrl?: string): string {
-  const existing = readStoredCredentials();
-  return writeCredentials({
-    ...(existing?.anthropicKey !== undefined ? { anthropicKey: existing.anthropicKey } : {}),
-    token,
-    ...(apiUrl !== undefined ? { apiUrl } : {}),
-    savedAt: new Date().toISOString(),
-  });
+  return updateCredentials({ token, ...(apiUrl !== undefined ? { apiUrl } : {}) });
 }
 
 export function saveAnthropicKey(anthropicKey: string): string {
-  const existing = readStoredCredentials();
-  return writeCredentials({
-    ...(existing?.token !== undefined ? { token: existing.token } : {}),
-    ...(existing?.apiUrl !== undefined ? { apiUrl: existing.apiUrl } : {}),
-    anthropicKey,
-    savedAt: new Date().toISOString(),
-  });
+  return updateCredentials({ anthropicKey });
 }
 
-/** Efface uniquement le jeton Pro, en préservant la clé Anthropic. */
+export function saveFigmaToken(figmaToken: string): string {
+  return updateCredentials({ figmaToken });
+}
+
+/** Efface uniquement le jeton Pro, en préservant les autres secrets. */
 export function clearToken(): boolean {
-  const existing = readStoredCredentials();
-  if (existing?.token === undefined) return false;
-  if (existing.anthropicKey === undefined) return clearCredentials();
-  writeCredentials({ anthropicKey: existing.anthropicKey, savedAt: new Date().toISOString() });
+  if (readStoredCredentials()?.token === undefined) return false;
+  updateCredentials({ token: undefined });
   return true;
 }
 
-/** Efface uniquement la clé Anthropic, en préservant le jeton Pro. */
+/** Efface uniquement la clé Anthropic, en préservant les autres secrets. */
 export function clearAnthropicKey(): boolean {
-  const existing = readStoredCredentials();
-  if (existing?.anthropicKey === undefined) return false;
-  if (existing.token === undefined) return clearCredentials();
-  writeCredentials({
-    token: existing.token,
-    ...(existing.apiUrl !== undefined ? { apiUrl: existing.apiUrl } : {}),
-    savedAt: new Date().toISOString(),
-  });
+  if (readStoredCredentials()?.anthropicKey === undefined) return false;
+  updateCredentials({ anthropicKey: undefined });
+  return true;
+}
+
+/** Efface uniquement le jeton Figma, en préservant les autres secrets. */
+export function clearFigmaToken(): boolean {
+  if (readStoredCredentials()?.figmaToken === undefined) return false;
+  updateCredentials({ figmaToken: undefined });
   return true;
 }
 

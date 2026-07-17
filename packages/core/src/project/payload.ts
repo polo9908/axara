@@ -16,6 +16,11 @@ import type { GateResult, FileRgaaFinding, ScoreBreakdown } from './score.js';
 // v2 : courbe de score asymptotique (plus de clamp à 0) + sous-scores
 // `scores.{design,rgaa}`. / v2: asymptotic score curve (no flat clamp at 0)
 // plus `scores.{design,rgaa}` sub-scores.
+// v2 additif : `designSystem { enabled, origin }` — quand `enabled` est false
+// (projet sans design system, audit RGAA seul), `scores.design` reste à 100
+// pour la stabilité du contrat. / v2 additive: `designSystem { enabled,
+// origin }` — when `enabled` is false (no design system, RGAA-only audit),
+// `scores.design` stays at 100 for contract stability.
 export const PAYLOAD_VERSION = 2;
 
 export interface RgaaAggregate {
@@ -37,6 +42,11 @@ export interface AuditPayload {
   readonly scores: {
     readonly design: number;
     readonly rgaa: number;
+  };
+  /** Provenance du design system audité ; absent des payloads antérieurs. */
+  readonly designSystem?: {
+    readonly enabled: boolean;
+    readonly origin: string;
   };
   readonly gate: {
     readonly evaluated: boolean;
@@ -98,6 +108,8 @@ export interface BuildAuditPayloadArgs {
   readonly gate: GateResult;
   readonly scores: ScoreBreakdown;
   readonly ciMode: boolean;
+  /** Provenance des tokens (origin de ResolvedTokensSource). */
+  readonly tokensOrigin: string;
 }
 
 export function buildAuditPayload(args: BuildAuditPayloadArgs): AuditPayload {
@@ -119,6 +131,7 @@ export function buildAuditPayload(args: BuildAuditPayloadArgs): AuditPayload {
     project: args.project,
     score: args.gate.score,
     scores: { design: args.scores.design, rgaa: args.scores.rgaa },
+    designSystem: { enabled: args.tokensOrigin !== 'none', origin: args.tokensOrigin },
     gate: {
       evaluated: args.ciMode,
       passed: args.gate.passed,

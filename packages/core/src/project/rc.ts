@@ -48,8 +48,11 @@ export interface ProConfig {
 
 export interface AuditorRc {
   readonly project: string;
-  /** Path to the DTCG design-tokens document, relative to the rc file. */
-  readonly tokens: string;
+  /**
+   * Path to the DTCG design-tokens document, relative to the rc file.
+   * `false` = no design system: drift is skipped, the audit runs RGAA-only.
+   */
+  readonly tokens: string | false;
   readonly include: readonly string[];
   readonly exclude: readonly string[];
   readonly extensions: readonly string[];
@@ -62,7 +65,7 @@ export interface AuditorRc {
 /** Deep-partial shape accepted from `.auditorrc.json` and the remote API. */
 export interface AuditorRcInput {
   readonly project?: string;
-  readonly tokens?: string;
+  readonly tokens?: string | false;
   readonly include?: readonly string[];
   readonly exclude?: readonly string[];
   readonly extensions?: readonly string[];
@@ -159,6 +162,14 @@ export function loadRc(cwd: string, explicitPath?: string): LoadedRc {
 /** Absolute path of the tokens document declared by the config. */
 export function resolveRcTokensPath(loaded: LoadedRc, override?: string): string {
   const raw = override ?? loaded.rc.tokens;
+  if (raw === false) {
+    throw new ConfigError(
+      tr(
+        `Design system désactivé ("tokens": false dans ${RC_FILENAME}).`,
+        `Design system disabled ("tokens": false in ${RC_FILENAME}).`,
+      ),
+    );
+  }
   const abs = isAbsolute(raw) ? raw : resolve(loaded.rootDir, raw);
   if (!existsSync(abs)) {
     throw new ConfigError(

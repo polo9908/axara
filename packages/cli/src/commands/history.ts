@@ -97,6 +97,8 @@ function scoreCommit(commit: CommitInfo, loaded: LoadedRc): number | null {
   }));
 
   // Tokens at that point in time: the DTCG file if it existed, else zero-config.
+  // `"tokens": false` (no design system) → no drift history to compute.
+  if (loaded.rc.tokens === false) return null;
   const tokensRel = loaded.rc.tokens.replace(/^\.\//, '').replaceAll('\\', '/');
   let tokensJson: string | null = null;
   if (listed.includes(tokensRel)) {

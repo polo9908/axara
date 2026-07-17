@@ -47,6 +47,25 @@ describe('loadRc', () => {
   it('throws ConfigError when an explicit path is missing', () => {
     expect(() => loadRc(dir, 'missing.json')).toThrow(ConfigError);
   });
+
+  it('accepts "tokens": false (no design system) and preserves it through merge', () => {
+    writeFileSync(join(dir, '.auditorrc.json'), JSON.stringify({ tokens: false }));
+    const { rc } = loadRc(dir);
+    expect(rc.tokens).toBe(false);
+    expect(mergeRc(DEFAULT_RC, { tokens: false }).tokens).toBe(false);
+  });
+});
+
+describe('resolveRcTokensPath with "tokens": false', () => {
+  it('throws ConfigError, but an explicit override still wins', () => {
+    writeFileSync(join(dir, '.auditorrc.json'), JSON.stringify({ tokens: false }));
+    const loaded = loadRc(dir);
+    expect(() => resolveRcTokensPath(loaded)).toThrow(ConfigError);
+    writeFileSync(join(dir, 'override.dtcg.json'), '{}');
+    expect(resolveRcTokensPath(loaded, join(dir, 'override.dtcg.json'))).toBe(
+      join(dir, 'override.dtcg.json'),
+    );
+  });
 });
 
 describe('resolveRcTokensPath', () => {

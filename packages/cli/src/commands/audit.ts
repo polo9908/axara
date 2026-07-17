@@ -164,6 +164,16 @@ export async function runAudit(argv: readonly string[]): Promise<number> {
     );
   }
 
+  if (result.tokensSource.origin === 'none' && flags.format === 'pretty') {
+    log(
+      yellow(
+        tr(
+          '⚠ Aucun design system — audit RGAA + tabulation uniquement.',
+          '⚠ No design system — RGAA + keyboard audit only.',
+        ),
+      ),
+    );
+  }
   if (result.tokensSource.origin === 'auto') {
     // Reconstruit le détail depuis les compteurs structurés pour pouvoir le
     // localiser (core fournit `detail` en français, gardé en fallback).
@@ -252,6 +262,23 @@ export async function runAudit(argv: readonly string[]): Promise<number> {
     const tips: Tip[] = [];
     const driftCount = payload.drift.issues.length;
     const rgaaFailed = payload.rgaa.findings.filter((f) => f.status === 'failed');
+    if (result.tokensSource.origin === 'none') {
+      tips.push({
+        cmd: 'axaraaudit init',
+        why: tr(
+          'configuration guidée de votre design system',
+          'guided setup of your design system',
+        ),
+      });
+    } else if (result.tokensSource.origin === 'auto') {
+      tips.push({
+        cmd: 'axaraaudit init',
+        why: tr(
+          'formaliser ces tokens en design system déclaré',
+          'formalize these tokens as a declared design system',
+        ),
+      });
+    }
     if (driftCount > 0) {
       tips.push({
         cmd: 'axaraaudit fix --write',

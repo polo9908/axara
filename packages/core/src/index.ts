@@ -54,6 +54,10 @@ export {
   type ExtractCssVarOptions,
 } from './tokens/css-vars.js';
 
+// Design-system importers → DTCG documents
+export { figmaTokensToDtcg, type FigmaDtcgResult } from './tokens/figma-dtcg.js';
+export { tailwindThemeToDtcg, type TailwindConversion } from './tokens/tailwind-dtcg.js';
+
 // Analyzers
 export { analyzeCss, isSpacingProperty, type CssAnalyzeOptions } from './analyzer/css.js';
 export { analyzeTsx, type TsxAnalyzeOptions } from './analyzer/tsx.js';
@@ -134,6 +138,33 @@ export {
   type ProjectCheckResult,
   type FileCheckResult,
 } from './project/run.js';
+
+// Figma Variables connector (network-free unless FigmaClient is invoked with a
+// real fetch — the implementation is injectable, tests stay offline)
+export { FigmaClient, type FigmaClientOptions, type FetchLike } from './figma/client.js';
+export {
+  normalizeFigmaVariables,
+  type NormalizeOptions,
+  type NormalizeResult,
+} from './figma/normalize.js';
+export {
+  compareTokens,
+  type FigmaComparison,
+  type TokenMatch,
+  type TokenMismatch,
+} from './figma/compare.js';
+export type {
+  FigmaResolvedType,
+  FigmaRgba,
+  FigmaVariableAlias,
+  FigmaVariableValue,
+  FigmaVariable,
+  FigmaVariableMode,
+  FigmaVariableCollection,
+  FigmaVariablesMeta,
+  FigmaVariablesResponse,
+  NormalizedFigmaToken,
+} from './figma/types.js';
 
 // Auto-fix (safe, position-based remediation)
 export {

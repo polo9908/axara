@@ -23,7 +23,11 @@ import {
   type FileRgaaFinding,
   type GateResult,
 } from './score.js';
-import { loadTokensSource, type TokensSource } from './tokens-source.js';
+import {
+  loadTokensSource,
+  resolveTokensSourceLenient,
+  type TokensSource,
+} from './tokens-source.js';
 import { tr } from '../i18n.js';
 import { collectFiles } from './walk.js';
 
@@ -31,11 +35,11 @@ const JSX_EXT = new Set(['.tsx', '.jsx']);
 const HTML_EXT = new Set(['.html', '.htm']);
 
 /**
- * Where the audited tokens came from (adds `inline` for Pro remote tokens and
- * `none` when `checkFiles` runs RGAA-only in a token-less project).
+ * Where the audited tokens came from (adds `inline` for Pro remote tokens;
+ * `none` = token-less project, the audit ran RGAA-only).
  */
 export interface ResolvedTokensSource {
-  readonly origin: TokensSource['origin'] | 'inline' | 'none';
+  readonly origin: TokensSource['origin'] | 'inline';
   readonly detail: string;
   /** Set when origin === 'auto' — lets callers build a localized message. */
   readonly count?: number;
@@ -108,12 +112,28 @@ export async function auditProject(options: ProjectAuditOptions): Promise<Projec
       detail: tr('tokens fournis en mémoire (config distante)', 'tokens provided in memory (remote config)'),
     };
   } else {
-    const source = loadTokensSource(loaded, options.tokensPath, files);
+    // Lenient: a project without any design system still audits (RGAA-only).
+    const source = resolveTokensSourceLenient(loaded, options.tokensPath, files);
     tokensJson = source.json;
     tokensSource = resolveSource(source);
   }
 
-  const drift = auditSources(tokensJson, files, { remBasePx: rc.remBasePx });
+  // No design system → no meaningful drift baseline: empty report, zero noise.
+  const drift: AuditReport =
+    tokensSource.origin === 'none'
+      ? {
+          tokens: [],
+          tokenErrors: [],
+          issues: [],
+          summary: {
+            filesScanned: files.length,
+            totalIssues: 0,
+            errors: 0,
+            warnings: 0,
+            autoFixable: 0,
+          },
+        }
+      : auditSources(tokensJson, files, { remBasePx: rc.remBasePx });
 
   const rgaaEnabled = rc.rgaa.enabled && options.skipRgaa !== true;
   const rgaaFindings: FileRgaaFinding[] = [];
@@ -156,6 +176,7 @@ export async function auditProject(options: ProjectAuditOptions): Promise<Projec
     gate,
     scores,
     ciMode: options.ciMode === true,
+    tokensOrigin: tokensSource.origin,
   });
 
   return { payload, gate, loaded, rc, files: filePaths, tokensSource, drift, rgaaFindings };
@@ -297,26 +318,18 @@ export async function checkFiles(options: ProjectCheckOptions): Promise<ProjectC
   let source: ResolvedTokensSource & { readonly json: string };
   try {
     source = loadTokensSource(loaded, options.tokensPath, []);
-  } catch {
-    try {
-      const cssPaths = collectFiles(loaded.rootDir, rc.include, rc.exclude, rc.extensions);
-      const cssFiles: SourceFile[] = cssPaths.map((path) => ({
-        path,
-        content: readFileSync(path, 'utf8'),
-      }));
-      source = loadTokensSource(loaded, options.tokensPath, cssFiles);
-    } catch (error) {
-      // An explicit tokensPath that cannot be loaded is a user error.
-      if (options.tokensPath !== undefined) throw error;
-      source = {
-        json: '{}',
-        origin: 'none',
-        detail: tr(
-          'aucun design system détecté — validation RGAA uniquement',
-          'no design system detected — RGAA-only validation',
-        ),
-      };
-    }
+  } catch (error) {
+    // An explicit tokensPath that cannot be loaded is a user error.
+    if (options.tokensPath !== undefined) throw error;
+    // `"tokens": false` never falls back to extraction: skip the walk.
+    const cssFiles: SourceFile[] =
+      rc.tokens === false
+        ? []
+        : collectFiles(loaded.rootDir, rc.include, rc.exclude, rc.extensions).map((path) => ({
+            path,
+            content: readFileSync(path, 'utf8'),
+          }));
+    source = resolveTokensSourceLenient(loaded, options.tokensPath, cssFiles);
   }
   const index = parseDtcgString(source.json, { remBasePx: rc.remBasePx }).index;
 

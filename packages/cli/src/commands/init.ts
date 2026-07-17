@@ -1,6 +1,9 @@
 /**
- * `axaraaudit init` — scaffold a commented `.auditorrc.json` in the current
- * directory so teams start from a working baseline.
+ * `axaraaudit init` — configure le projet.
+ *
+ * Sur un TTY interactif : wizard guidé (détection du design system, choix
+ * adaptés, porte de sortie RGAA-seul) — voir init-wizard.ts. En pipe/CI ou
+ * avec `--yes` : scaffold silencieux du `.auditorrc.json` historique.
  */
 
 import { existsSync, writeFileSync } from 'node:fs';
@@ -9,45 +12,56 @@ import { parseArgs } from 'node:util';
 import { RC_FILENAME } from '../config/rc.js';
 import { tr } from '../i18n.js';
 import { dim, green, red } from '../report/render.js';
+import { canSelect } from '../ui/select.js';
 import { printTips } from '../ui/tips.js';
+import { rcTemplate, runFromFigma, runFromTailwind, runInitWizard } from './init-wizard.js';
 
-const TEMPLATE = (project: string): string =>
-  `${JSON.stringify(
-    {
-      project,
-      tokens: './design-tokens.dtcg.json',
-      include: ['src', 'components', 'styles'],
-      exclude: ['node_modules', 'dist', 'build', '.next'],
-      extensions: ['.css', '.scss', '.tsx', '.jsx', '.html'],
-      remBasePx: 16,
-      rgaa: {
-        enabled: true,
-        scope: 'component',
-        contrast: false,
-        priority: ['1.1', '3.2', '11.1'],
-      },
-      ci: {
-        failUnder: 80,
-        blockOnCritical: true,
-      },
-      pro: {
-        apiUrl: 'https://api.axara.dev',
-        upload: false,
-        remoteConfig: false,
-      },
-    },
-    null,
-    2,
-  )}\n`;
-
-export function runInit(argv: readonly string[]): number {
+export async function runInit(argv: readonly string[]): Promise<number> {
+  // `--from-tailwind` nu (sans valeur) = auto-détection : parseArgs exige une
+  // valeur pour les options string, on injecte donc la forme `=`.
+  const args = argv.map((arg, i) =>
+    arg === '--from-tailwind' && (argv[i + 1] === undefined || argv[i + 1]!.startsWith('-'))
+      ? '--from-tailwind='
+      : arg,
+  );
   const { values } = parseArgs({
-    args: [...argv],
-    options: { force: { type: 'boolean', default: false } },
+    args,
+    options: {
+      force: { type: 'boolean', default: false },
+      yes: { type: 'boolean', default: false },
+      // `--from-tailwind` nu = auto-détection ; une valeur = chemin du config.
+      'from-tailwind': { type: 'string' },
+      'from-figma': { type: 'string' },
+    },
     allowPositionals: true,
   });
 
   const cwd = process.cwd();
+  const force = values.force === true;
+
+  // Chemins scriptables : import direct, sans wizard (TTY ou non).
+  if (values['from-tailwind'] !== undefined) {
+    return runFromTailwind({ cwd, configPath: values['from-tailwind'], force });
+  }
+  if (values['from-figma'] !== undefined) {
+    if (values['from-figma'] === '') {
+      process.stderr.write(
+        red(
+          tr(
+            '--from-figma attend une URL ou une clé de fichier Figma.\n',
+            '--from-figma expects a Figma file URL or key.\n',
+          ),
+        ),
+      );
+      return 2;
+    }
+    return runFromFigma({ cwd, ref: values['from-figma'], force });
+  }
+
+  if (canSelect() && values.yes !== true) {
+    return runInitWizard({ cwd, force });
+  }
+
   const target = resolve(cwd, RC_FILENAME);
   if (existsSync(target) && values.force !== true) {
     process.stderr.write(
@@ -61,7 +75,7 @@ export function runInit(argv: readonly string[]): number {
     return 2;
   }
 
-  writeFileSync(target, TEMPLATE(basename(cwd)), 'utf8');
+  writeFileSync(target, rcTemplate(basename(cwd), './design-tokens.dtcg.json'), 'utf8');
   process.stdout.write(green(tr(`✓ ${RC_FILENAME} créé.\n`, `✓ ${RC_FILENAME} created.\n`)));
   process.stdout.write(
     dim(

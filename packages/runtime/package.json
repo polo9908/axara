@@ -1,6 +1,6 @@
 {
   "name": "@axaraaudit/runtime",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "description": "Headless Playwright runtime (focus-trap detection) and Figma Variables connector",
   "license": "MIT",
   "type": "module",

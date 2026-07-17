@@ -20,12 +20,14 @@ import { BRAND } from '../ui/theme.js';
 import { tr } from '../i18n.js';
 import {
   clearAnthropicKey,
+  clearFigmaToken,
   clearToken,
   maskToken,
   readStoredCredentials,
   resolveToken,
   saveAnthropicKey,
   saveCredentials,
+  saveFigmaToken,
   TOKEN_ENV_VAR,
 } from '../config/credentials.js';
 import { readSettings, saveSettings } from '../config/settings.js';
@@ -52,6 +54,7 @@ function tilde(path: string): string {
 type RowAction =
   | { readonly kind: 'edit-token' }
   | { readonly kind: 'edit-anthropic' }
+  | { readonly kind: 'edit-figma' }
   | { readonly kind: 'cycle-lang' }
   | { readonly kind: 'toggle-update' }
   | { readonly kind: 'toggle-mcp'; readonly client: McpClientStatus };
@@ -93,6 +96,10 @@ function buildSections(level: ColorLevel): readonly Section[] {
     stored?.anthropicKey !== undefined
       ? paintFg(maskToken(stored.anthropicKey), BRAND.green, level)
       : paintFg(tr('— non configurée', '— not set'), BRAND.slate, level);
+  const figmaValue =
+    stored?.figmaToken !== undefined
+      ? paintFg(maskToken(stored.figmaToken), BRAND.green, level)
+      : paintFg(tr('— non configuré', '— not set'), BRAND.slate, level);
 
   const langValue =
     settings.lang === undefined
@@ -115,6 +122,12 @@ function buildSections(level: ColorLevel): readonly Section[] {
           value: anthropicValue,
           clearable: stored?.anthropicKey !== undefined,
           action: { kind: 'edit-anthropic' },
+        },
+        {
+          label: tr('Jeton Figma', 'Figma token'),
+          value: figmaValue,
+          clearable: stored?.figmaToken !== undefined,
+          action: { kind: 'edit-figma' },
         },
       ],
     },
@@ -272,7 +285,11 @@ function toggleMcp(client: McpClientStatus, level: ColorLevel): string {
   }
 }
 
-function saveToken(kind: 'edit-token' | 'edit-anthropic', value: string, level: ColorLevel): string {
+function saveToken(
+  kind: 'edit-token' | 'edit-anthropic' | 'edit-figma',
+  value: string,
+  level: ColorLevel,
+): string {
   const trimmed = value.trim();
   if (trimmed === '') return '';
   if (kind === 'edit-token') {
@@ -281,6 +298,17 @@ function saveToken(kind: 'edit-token' | 'edit-anthropic', value: string, level: 
       tr(
         `✓ Jeton Pro enregistré (${tilde(path)}) — vérifiez avec \`axaraaudit whoami\`.`,
         `✓ Pro token saved (${tilde(path)}) — verify with \`axaraaudit whoami\`.`,
+      ),
+      BRAND.green,
+      level,
+    );
+  }
+  if (kind === 'edit-figma') {
+    const path = saveFigmaToken(trimmed);
+    return paintFg(
+      tr(
+        `✓ Jeton Figma enregistré (${tilde(path)}) — \`init --from-figma\` est disponible.`,
+        `✓ Figma token saved (${tilde(path)}) — \`init --from-figma\` is now available.`,
       ),
       BRAND.green,
       level,
@@ -304,6 +332,9 @@ function clearRow(row: Row, level: ColorLevel): string {
   }
   if (row.action.kind === 'edit-anthropic' && clearAnthropicKey()) {
     return paintFg(tr('✓ Clé Anthropic effacée.', '✓ Anthropic key cleared.'), BRAND.green, level);
+  }
+  if (row.action.kind === 'edit-figma' && clearFigmaToken()) {
+    return paintFg(tr('✓ Jeton Figma effacé.', '✓ Figma token cleared.'), BRAND.green, level);
   }
   return '';
 }
@@ -364,7 +395,12 @@ function runPanel(): Promise<number> {
           const row = rowAt(state.selected);
           const value = state.input.value;
           state.input = null;
-          if (row !== undefined && (row.action.kind === 'edit-token' || row.action.kind === 'edit-anthropic')) {
+          if (
+            row !== undefined &&
+            (row.action.kind === 'edit-token' ||
+              row.action.kind === 'edit-anthropic' ||
+              row.action.kind === 'edit-figma')
+          ) {
             state.status = saveToken(row.action.kind, value, level);
           }
         } else if (key === BACKSPACE || key === '\b') {
@@ -401,6 +437,10 @@ function runPanel(): Promise<number> {
               break;
             case 'edit-anthropic':
               state.input = { prompt: tr('Collez la clé Anthropic :', 'Paste the Anthropic key:'), value: '' };
+              state.status = '';
+              break;
+            case 'edit-figma':
+              state.input = { prompt: tr('Collez le jeton Figma :', 'Paste the Figma token:'), value: '' };
               state.status = '';
               break;
             case 'cycle-lang':

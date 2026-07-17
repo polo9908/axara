@@ -107,20 +107,29 @@ async function main(): Promise<number> {
   // revient, Échap/Ctrl-C termine (avec le code de la dernière commande).
   if (first === undefined || first.startsWith('/')) {
     if (paletteAvailable()) {
-      // Projet déjà configuré → `audit` présélectionné, Entrée suffit.
-      const paletteOpts = existsSync(RC_FILENAME)
-        ? {
-            preselect: 'audit',
-            hint: tr(
-              `${RC_FILENAME} détecté — Entrée lance l'audit`,
-              `${RC_FILENAME} detected — Enter runs the audit`,
-            ),
-          }
-        : {};
+      // Projet configuré → `audit` présélectionné ; sinon, premier lancement :
+      // `init` guidé présélectionné, Entrée suffit. Recalculé à chaque tour —
+      // après le wizard, le hint doit basculer sur l'audit.
+      const paletteOptsNow = (): { preselect?: string; hint?: string } =>
+        existsSync(RC_FILENAME)
+          ? {
+              preselect: 'audit',
+              hint: tr(
+                `${RC_FILENAME} détecté — Entrée lance l'audit`,
+                `${RC_FILENAME} detected — Enter runs the audit`,
+              ),
+            }
+          : {
+              preselect: 'init',
+              hint: tr(
+                'Premier lancement — Entrée : configuration guidée (30 s)',
+                'First launch — Enter: guided setup (30 s)',
+              ),
+            };
       let query = first ?? '';
       let lastCode = 0;
       for (;;) {
-        const pick = await runPalette(query, paletteOpts);
+        const pick = await runPalette(query, paletteOptsNow());
         if (pick === null) return lastCode;
         lastCode = await dispatch(pick, []);
         query = '';

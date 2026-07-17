@@ -1,6 +1,7 @@
 import type { AxeResults } from 'axe-core';
 import { describe, expect, it } from 'vitest';
 import { mapAxeResults } from './map.js';
+import { AXE_RGAA_MAP } from './mapping.js';
 
 interface FakeNode {
   html: string;
@@ -98,5 +99,20 @@ describe('mapAxeResults', () => {
     const report = mapAxeResults(RESULTS, { includeIncomplete: false });
     expect(report.findings.some((f) => f.status === 'cantTell')).toBe(false);
     expect(report.summary.criteriaToReview).toBe(0);
+  });
+});
+
+describe('périmètre du mapping axe→RGAA', () => {
+  it('couvre exactement 29 critères distincts — chiffre publié dans la déclaration', () => {
+    // Ce nombre est repris tel quel par la déclaration d'accessibilité du
+    // cloud (axara-cloud core/src/declaration.ts, AUTOMATED_CRITERIA_COUNT).
+    // Si ce test casse parce que le mapping s'est étendu : mettre à jour la
+    // constante côté cloud EN MÊME TEMPS, sinon la déclaration ment sur son
+    // périmètre.
+    const distinct = new Set<string>();
+    for (const criteria of Object.values(AXE_RGAA_MAP)) {
+      for (const criterion of criteria) distinct.add(criterion);
+    }
+    expect(distinct.size).toBe(29);
   });
 });

@@ -44,7 +44,11 @@ function renderDriftIssue(issue: DriftIssue): string {
 
 /** « Design system 96/100 · RGAA 12/100 » — la progression par source. */
 export function renderSubScores(payload: AuditPayload): string {
-  const parts = [`Design system ${payload.scores.design}/100`];
+  const parts: string[] = [];
+  // Payloads antérieurs (sans `designSystem`) : sous-score toujours affiché.
+  if (payload.designSystem?.enabled !== false) {
+    parts.push(`Design system ${payload.scores.design}/100`);
+  }
   if (payload.rgaa.enabled) parts.push(`RGAA ${payload.scores.rgaa}/100`);
   return parts.join(' · ');
 }
@@ -76,7 +80,16 @@ export function renderPretty(
 
   // — Design drift —
   lines.push(bold('  DESIGN SYSTEM'));
-  if (payload.drift.issues.length === 0) {
+  if (payload.designSystem?.enabled === false) {
+    lines.push(
+      dim(
+        `    ${tr(
+          'mode RGAA (sans design system) — `axaraaudit init` pour en déclarer un',
+          'RGAA mode (no design system) — `axaraaudit init` to declare one',
+        )}`,
+      ),
+    );
+  } else if (payload.drift.issues.length === 0) {
     lines.push(green(`    ✓ ${tr('Aucune dérive détectée', 'No drift detected')}`));
   } else {
     const byFile = new Map<string, DriftIssue[]>();
