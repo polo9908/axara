@@ -21,6 +21,7 @@ import { loadTokensSource } from '../config/tokens-source.js';
 import { resolveAnthropicKey } from '../config/credentials.js';
 import { requestText, ClaudeError } from '../services/claude.js';
 import { tr } from '../i18n.js';
+import { CLOUD_ENABLED } from '../cloud.js';
 import { collectFiles } from '../scan/walk.js';
 import { printTips } from '../ui/tips.js';
 import { computeScore, type FileRgaaFinding } from '../report/score.js';
@@ -82,7 +83,13 @@ export async function runRoast(argv: readonly string[]): Promise<number> {
         `    1. Create a key at ${cyan('https://console.anthropic.com/settings/keys')}\n`,
       ),
     );
-    process.stdout.write(`    2. ${bold('axaraaudit login --anthropic-key sk-ant-...')}\n\n`);
+    process.stdout.write(
+      `    2. ${bold(
+        CLOUD_ENABLED
+          ? 'axaraaudit login --anthropic-key sk-ant-...'
+          : tr('axaraaudit settings — ligne « Clé Anthropic »', 'axaraaudit settings — “Anthropic key” row'),
+      )}\n\n`,
+    );
     return 2;
   }
 

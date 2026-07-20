@@ -91,6 +91,7 @@ export {
   type RgaaConfig,
   type CiConfig,
   type ProConfig,
+  type AuditExceptionEntry,
   type AuditorRc,
   type AuditorRcInput,
   type LoadedRc,
@@ -125,6 +126,27 @@ export {
   rgaaIdentity,
   normalizeFingerprintPath,
 } from './project/fingerprint.js';
+export {
+  applyExceptions,
+  resolveConfigExceptions,
+  type ExceptionsSummary,
+  type ExceptionApplication,
+  type ExceptionOrigin,
+  type ExceptedDriftIssue,
+  type ExceptedRgaaFinding,
+} from './project/exceptions.js';
+export {
+  parseInlineDirectives,
+  parseIgnoreRule,
+  driftDirectiveMatches,
+  rgaaDirectiveMatches,
+  globToRegExp,
+  matchesAnyGlob,
+  type IgnoreRule,
+  type InlineDirective,
+  type InvalidDirective,
+} from './project/ignore.js';
+export { diffAuditPayloads, type AuditDiff, type DiffEntry } from './project/diff.js';
 export {
   auditProject,
   fixProject,

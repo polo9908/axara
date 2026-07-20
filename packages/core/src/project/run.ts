@@ -16,7 +16,26 @@ import { parseDtcgString } from '../tokens/dtcg.js';
 import type { RgaaFinding } from '../rgaa/types.js';
 import type { DriftIssue } from '../types.js';
 import { loadRc, mergeRc, type AuditorRc, type AuditorRcInput, type LoadedRc } from './rc.js';
-import { buildAuditPayload, type AuditPayload } from './payload.js';
+import { buildAuditPayload, payloadDriftFile, type AuditPayload } from './payload.js';
+import {
+  applyExceptions,
+  resolveConfigExceptions,
+  type ExceptionsSummary,
+} from './exceptions.js';
+import {
+  driftDirectiveMatches,
+  matchesAnyGlob,
+  parseInlineDirectives,
+  rgaaDirectiveMatches,
+  type InlineDirective,
+  type InvalidDirective,
+} from './ignore.js';
+import {
+  driftIdentity,
+  fingerprintAll,
+  normalizeFingerprintPath,
+  rgaaIdentity,
+} from './fingerprint.js';
 import {
   computeScoreBreakdown,
   evaluateGate,
@@ -87,8 +106,12 @@ export interface ProjectAuditResult {
   /** Absolute paths of every analyzed file. */
   readonly files: readonly string[];
   readonly tokensSource: ResolvedTokensSource;
+  /** Rapport de drift complet, exceptions incluses (chemins absolus). */
   readonly drift: AuditReport;
+  /** Constats RGAA complets, exceptions incluses. */
   readonly rgaaFindings: readonly FileRgaaFinding[];
+  /** Synthèse des exceptions justifiées appliquées à cet audit. */
+  readonly exceptions: ExceptionsSummary;
 }
 
 /** Run the full open-source audit pipeline on a project directory. */
@@ -152,14 +175,66 @@ export async function auditProject(options: ProjectAuditOptions): Promise<Projec
         ...(rc.rgaa.scope === 'component' ? { disableRules: PAGE_SCOPED_RULES } : {}),
       });
       for (const finding of report.findings) {
-        // Findings are file-relative in the payload (stable contract, diffable).
-        rgaaFindings.push({ file: relative(loaded.rootDir, file.path), finding });
+        // Findings are POSIX file-relative everywhere (payload, gate reasons,
+        // fingerprints) — stable contract, diffable across OSes.
+        rgaaFindings.push({
+          file: normalizeFingerprintPath(relative(loaded.rootDir, file.path)),
+          finding,
+        });
       }
     }
   }
 
-  const scores = computeScoreBreakdown(drift.summary, rgaaFindings);
-  const gate = evaluateGate(scores.global, rgaaFindings, {
+  // ── Exceptions justifiées (config + directives inline `axara-ignore`) :
+  // empreintes sur les listes COMPLÈTES (rangs de doublons), puis partition —
+  // les violations exceptées ne comptent ni dans le score ni dans le gate
+  // (le build n'échoue jamais sur une dette assumée) mais restent tracées
+  // dans la section `excepted` du payload.
+  const config = resolveConfigExceptions(rc.exceptions);
+  const inline = new Map<string, InlineDirective[]>();
+  const invalidDirectives: InvalidDirective[] = [];
+  for (const file of files) {
+    if (!file.content.includes('axara-ignore')) continue;
+    const rel = normalizeFingerprintPath(relative(loaded.rootDir, file.path));
+    const parsed = parseInlineDirectives(file.content);
+    if (parsed.directives.length > 0) inline.set(rel, [...parsed.directives]);
+    for (const bad of parsed.invalid) invalidDirectives.push({ ...bad, file: rel });
+  }
+
+  const driftWithRel = drift.issues.map((issue) => ({
+    ...issue,
+    relativeFile: payloadDriftFile(loaded.rootDir, issue.file),
+  }));
+  const driftFingerprints = fingerprintAll(
+    driftWithRel.map((issue) => driftIdentity(issue, issue.relativeFile)),
+  );
+  const rgaaFingerprints = fingerprintAll(
+    rgaaFindings.map(({ file, finding }) => rgaaIdentity(finding, file)),
+  );
+  const partition = applyExceptions({
+    driftIssues: driftWithRel,
+    driftFingerprints,
+    rgaaFindings,
+    rgaaFingerprints,
+    config,
+    inline,
+    invalidDirectives,
+  });
+  const keptIssues = partition.driftKept;
+  const keptSummary: AuditReport['summary'] = {
+    filesScanned: drift.summary.filesScanned,
+    totalIssues: keptIssues.length,
+    errors: keptIssues.filter((i) => i.severity === 'error').length,
+    warnings: keptIssues.filter((i) => i.severity === 'warning').length,
+    autoFixable: keptIssues.filter((i) => i.autoFixable).length,
+  };
+  const keptFindings: FileRgaaFinding[] = partition.rgaaKept.map(({ file, finding }) => ({
+    file,
+    finding,
+  }));
+
+  const scores = computeScoreBreakdown(keptSummary, keptFindings);
+  const gate = evaluateGate(scores.global, keptFindings, {
     failUnder: rc.ci.failUnder,
     blockOnCritical: rc.ci.blockOnCritical,
     priority: rc.rgaa.priority,
@@ -169,17 +244,35 @@ export async function auditProject(options: ProjectAuditOptions): Promise<Projec
     toolVersion: options.toolVersion,
     project: rc.project,
     rootDir: loaded.rootDir,
-    drift,
+    drift: { ...drift, issues: keptIssues, summary: keptSummary },
     rgaaEnabled,
     rgaaFilesAudited,
-    rgaaFindings,
+    rgaaFindings: keptFindings,
     gate,
     scores,
     ciMode: options.ciMode === true,
     tokensOrigin: tokensSource.origin,
+    driftFingerprints: keptIssues.map((i) => i.fingerprint),
+    rgaaFingerprints: partition.rgaaKept.map((f) => f.fingerprint),
+    ...(partition.summary.declared > 0 || partition.summary.invalid.length > 0
+      ? {
+          exceptions: partition.summary,
+          excepted: { drift: partition.driftExcepted, rgaa: partition.rgaaExcepted },
+        }
+      : {}),
   });
 
-  return { payload, gate, loaded, rc, files: filePaths, tokensSource, drift, rgaaFindings };
+  return {
+    payload,
+    gate,
+    loaded,
+    rc,
+    files: filePaths,
+    tokensSource,
+    drift,
+    rgaaFindings,
+    exceptions: partition.summary,
+  };
 }
 
 export interface ProjectFixOptions {
@@ -297,6 +390,8 @@ export interface ProjectCheckResult {
     readonly driftIssues: number;
     readonly rgaaFailed: number;
     readonly rgaaToReview: number;
+    /** Violations couvertes par une exception justifiée (inline ou config). */
+    readonly excepted: number;
   };
   /** No drift at all and no failed RGAA criterion (cantTell doesn't block). */
   readonly conformant: boolean;
@@ -335,6 +430,11 @@ export async function checkFiles(options: ProjectCheckOptions): Promise<ProjectC
 
   const analyzable = new Set(rc.extensions.map((ext) => ext.toLowerCase()));
   const rgaaEnabled = rc.rgaa.enabled && options.skipRgaa !== true;
+  // Exceptions : inline + règles récurrentes de la config. Les entrées par
+  // empreinte sont ignorées ici — les empreintes exigent le contexte de
+  // l'audit projet complet (rangs de doublons), `audit` les applique.
+  const checkExceptions = resolveConfigExceptions(rc.exceptions);
+  let exceptedTotal = 0;
 
   const results: FileCheckResult[] = [];
   for (const entry of options.files) {
@@ -348,7 +448,25 @@ export async function checkFiles(options: ProjectCheckOptions): Promise<ProjectC
 
     const content = readFileSync(abs, 'utf8');
     // No design system → no meaningful drift baseline; RGAA still applies.
-    const drift = source.origin === 'none' ? [] : analyzeSource({ path: abs, content }, index);
+    let drift = source.origin === 'none' ? [] : analyzeSource({ path: abs, content }, index);
+
+    const relPosix = normalizeFingerprintPath(rel);
+    const directives = content.includes('axara-ignore')
+      ? parseInlineDirectives(content).directives
+      : [];
+    const isDriftExcepted = (issue: (typeof drift)[number]): boolean =>
+      directives.some((d) => driftDirectiveMatches(d, issue)) ||
+      checkExceptions.byRule.some(
+        (r) =>
+          r.rule.kind === 'drift' &&
+          (r.files === null || matchesAnyGlob(relPosix, r.files)) &&
+          (r.rule.target === '*' ||
+            r.rule.target === issue.category.toLowerCase() ||
+            r.rule.target === issue.property.toLowerCase()),
+      );
+    const driftExcepted = drift.filter(isDriftExcepted).length;
+    drift = drift.filter((issue) => !isDriftExcepted(issue));
+    exceptedTotal += driftExcepted;
 
     let rgaa: readonly RgaaFinding[] = [];
     if (rgaaEnabled) {
@@ -363,6 +481,17 @@ export async function checkFiles(options: ProjectCheckOptions): Promise<ProjectC
         rgaa = report.findings;
       }
     }
+    const isRgaaExcepted = (finding: RgaaFinding): boolean =>
+      directives.some((d) => rgaaDirectiveMatches(d, finding)) ||
+      checkExceptions.byRule.some(
+        (r) =>
+          r.rule.kind === 'rgaa' &&
+          r.rule.criterion === finding.criterion &&
+          (r.files === null || matchesAnyGlob(relPosix, r.files)),
+      );
+    const rgaaExcepted = rgaa.filter(isRgaaExcepted).length;
+    rgaa = rgaa.filter((finding) => !isRgaaExcepted(finding));
+    exceptedTotal += rgaaExcepted;
 
     results.push({ file: rel, skipped: false, drift, rgaa });
   }
@@ -387,6 +516,7 @@ export async function checkFiles(options: ProjectCheckOptions): Promise<ProjectC
       driftIssues,
       rgaaFailed,
       rgaaToReview,
+      excepted: exceptedTotal,
     },
     conformant: driftIssues === 0 && rgaaFailed === 0,
   };

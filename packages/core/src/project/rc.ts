@@ -37,6 +37,38 @@ export interface CiConfig {
   readonly blockOnCritical: boolean;
 }
 
+/**
+ * Exception justifiée : une violation acceptée (dette assumée, faux positif,
+ * dérogation art. 47). Elle ne compte plus dans le score ni dans le gate CI —
+ * le build ne doit JAMAIS échouer sur un critère couvert par une exception
+ * justifiée — mais elle reste tracée dans la section `excepted` du rapport.
+ * `reason` est obligatoire et non vide : pas de justification, pas
+ * d'exception. Deux formes, exclusives :
+ *   - ciblée   : `{ "fingerprint": "…" }` — une violation précise (empreinte
+ *     stable du rapport JSON) ;
+ *   - récurrente : `{ "rule": "RGAA-3.2" | "color" | "margin" | "drift",
+ *     "files": ["src/legacy/**"] }` — une règle à l'échelle du repo,
+ *     optionnellement restreinte par globs (`files` absent = partout).
+ * Justified exception: an accepted violation (assumed debt, false positive,
+ * art. 47 derogation). It no longer counts toward the score or the CI gate —
+ * the build must NEVER fail on a criterion covered by a justified exception —
+ * but it stays traced in the report's `excepted` section. `reason` is
+ * mandatory and non-empty. Two mutually exclusive forms: targeted
+ * (`fingerprint`) or recurring (`rule` + optional `files` globs).
+ */
+export interface AuditExceptionEntry {
+  /** Empreinte de la violation (`fingerprint` du rapport JSON). */
+  readonly fingerprint?: string;
+  /** Règle récurrente : critère RGAA, catégorie/propriété drift, ou `drift`. */
+  readonly rule?: string;
+  /** Globs POSIX limitant la règle (défaut : tout le repo). */
+  readonly files?: readonly string[];
+  /** Justification humaine — obligatoire, tracée dans le rapport. */
+  readonly reason: string;
+  /** Date ISO (AAAA-MM-JJ) après laquelle l'exception expire. */
+  readonly expires?: string;
+}
+
 /** Pro gateway settings. The auditor stays a sensor: endpoints only, no SaaS logic. */
 export interface ProConfig {
   readonly apiUrl: string;
@@ -60,6 +92,8 @@ export interface AuditorRc {
   readonly rgaa: RgaaConfig;
   readonly ci: CiConfig;
   readonly pro: ProConfig;
+  /** Violations acceptées, par empreinte — voir AuditExceptionEntry. */
+  readonly exceptions: readonly AuditExceptionEntry[];
 }
 
 /** Deep-partial shape accepted from `.auditorrc.json` and the remote API. */
@@ -73,6 +107,7 @@ export interface AuditorRcInput {
   readonly rgaa?: Partial<RgaaConfig>;
   readonly ci?: Partial<CiConfig>;
   readonly pro?: Partial<ProConfig>;
+  readonly exceptions?: readonly AuditExceptionEntry[];
 }
 
 export const DEFAULT_RC: AuditorRc = {
@@ -85,6 +120,7 @@ export const DEFAULT_RC: AuditorRc = {
   rgaa: { enabled: true, scope: 'component', contrast: false, priority: [] },
   ci: { failUnder: 80, blockOnCritical: true },
   pro: { apiUrl: 'https://api.axara.dev', upload: false, remoteConfig: false },
+  exceptions: [],
 };
 
 /** Merge a partial config (local file or remote payload) over a base config. */
@@ -99,6 +135,7 @@ export function mergeRc(base: AuditorRc, input: AuditorRcInput): AuditorRc {
     rgaa: { ...base.rgaa, ...(input.rgaa ?? {}) },
     ci: { ...base.ci, ...(input.ci ?? {}) },
     pro: { ...base.pro, ...(input.pro ?? {}) },
+    exceptions: input.exceptions ?? base.exceptions,
   };
 }
 

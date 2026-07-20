@@ -28,11 +28,10 @@ describe('filterCommands', () => {
   });
 
   it('trouve par mot-clé, dans les deux langues', () => {
-    // « jeton » et "token" sont des keywords de settings/login/whoami…
+    // « jeton » et "token" sont des keywords de settings…
     for (const query of ['jeton', 'token']) {
       const names = filterCommands(query).map((c) => c.name);
       expect(names).toContain('settings');
-      expect(names).toContain('login');
     }
     expect(filterCommands('mcp').map((c) => c.name)).toContain('settings');
     expect(filterCommands('rapport')[0]?.name).toBe('audit');
@@ -42,19 +41,19 @@ describe('filterCommands', () => {
     const accented = filterCommands('clé').map((c) => c.name);
     const plain = filterCommands('cle').map((c) => c.name);
     expect(accented).toEqual(plain);
-    expect(plain).toContain('login');
+    expect(plain).toContain('settings');
   });
 
-  it('classe le nom exact avant les correspondances par mot-clé', () => {
-    // « config » est un keyword de settings ET un mot de plusieurs briefs :
-    // le préfixe de nom (completion ne matche pas, mais settings via keyword)…
-    const names = filterCommands('login').map((c) => c.name);
-    expect(names[0]).toBe('login');
+  it('masque les commandes cloud tant qu’Axara Cloud est désactivé', () => {
+    const all = filterCommands('').map((c) => c.name);
+    for (const cloud of ['push', 'login', 'logout', 'whoami']) {
+      expect(all).not.toContain(cloud);
+    }
   });
 
   it('exige que chaque mot de la requête matche', () => {
     expect(filterCommands('jeton zzzzz')).toHaveLength(0);
-    const names = filterCommands('jeton pro').map((c) => c.name);
-    expect(names).toContain('login');
+    const names = filterCommands('jeton anthropic').map((c) => c.name);
+    expect(names).toContain('settings');
   });
 });

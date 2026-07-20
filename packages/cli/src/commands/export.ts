@@ -18,6 +18,7 @@ import { createSpinner } from '../ui/spinner.js';
 import { printTips } from '../ui/tips.js';
 import { green, dim } from '../report/render.js';
 import { CLI_NAME, CLI_VERSION } from '../version.js';
+import { CLOUD_ENABLED } from '../cloud.js';
 
 export interface ExportFlags {
   /** Rapport JSON existant ; sinon audit frais. */
@@ -130,10 +131,15 @@ export async function runExport(argv: readonly string[]): Promise<number> {
       cmd: 'axaraaudit fix --write',
       why: tr('applique les corrections sûres avant de partager', 'apply the safe fixes before sharing'),
     },
-    {
-      cmd: 'axaraaudit push',
-      why: tr('publie aussi le rapport sur le dashboard Pro', 'also publish the report to the Pro dashboard'),
-    },
+    // `push` : suggéré seulement quand Axara Cloud est actif (voir cloud.ts).
+    ...(CLOUD_ENABLED
+      ? [
+          {
+            cmd: 'axaraaudit push',
+            why: tr('publie aussi le rapport sur le dashboard Pro', 'also publish the report to the Pro dashboard'),
+          },
+        ]
+      : []),
   ]);
   return 0;
 }

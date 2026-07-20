@@ -149,6 +149,52 @@ export function renderPretty(
     );
   }
 
+  // — Exceptions justifiées : section SÉPARÉE des violations — la dette
+  //   assumée reste visible (raison + origine), jamais retirée en silence —
+  if (payload.excepted !== undefined || (payload.exceptions?.invalid.length ?? 0) > 0) {
+    lines.push(RULE);
+    const total = (payload.excepted?.drift.length ?? 0) + (payload.excepted?.rgaa.length ?? 0);
+    lines.push(bold(`  ${tr('EXCEPTIONS JUSTIFIÉES', 'JUSTIFIED EXCEPTIONS')} (${total})`));
+    if (total === 0) {
+      lines.push(dim(`    ${tr('(aucune violation exceptée sur cet audit)', '(no excepted violation in this audit)')}`));
+    }
+    for (const issue of payload.excepted?.drift ?? []) {
+      const origin = issue.origin === 'inline' ? 'axara-ignore' : '.auditorrc.json';
+      lines.push(
+        `    ${yellow('◌')} ${cyan(relPath(rootDir, issue.file))} ${dim(`L${issue.line}`)}  ${dim(issue.property)}  ${issue.value}`,
+      );
+      lines.push(dim(`       ${tr('raison', 'reason')} : ${issue.reason} ${dim(`(${origin})`)}`));
+    }
+    for (const finding of payload.excepted?.rgaa ?? []) {
+      const origin = finding.origin === 'inline' ? 'axara-ignore' : '.auditorrc.json';
+      lines.push(
+        `    ${yellow('◌')} ${bold(finding.criterion)} ${finding.criterionTitle} ${dim(`· ${relPath(rootDir, finding.file)}`)}`,
+      );
+      lines.push(dim(`       ${tr('raison', 'reason')} : ${finding.reason} ${dim(`(${origin})`)}`));
+    }
+    for (const bad of payload.exceptions?.invalid ?? []) {
+      lines.push(
+        red(
+          `    ✖ ${tr(
+            `axara-ignore sans raison — ${bad.file}:L${bad.line} (${bad.rule}) : directive IGNORÉE, la violation compte.`,
+            `axara-ignore without a reason — ${bad.file}:L${bad.line} (${bad.rule}): directive IGNORED, the violation counts.`,
+          )}`,
+        ),
+      );
+    }
+    const unmatched = payload.exceptions?.unmatched ?? [];
+    if (unmatched.length > 0) {
+      lines.push(
+        yellow(
+          `    ⚠ ${tr(
+            `${unmatched.length} exception(s) de config sans violation correspondante — à nettoyer.`,
+            `${unmatched.length} config exception(s) match no violation — clean them up.`,
+          )}`,
+        ),
+      );
+    }
+  }
+
   // — Score & gate (omis quand la révélation animée prend le relais) —
   if (options.verdict !== false) {
     lines.push(RULE);

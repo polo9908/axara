@@ -20,6 +20,7 @@ import { runHello } from './commands/hello.js';
 import { runInit } from './commands/init.js';
 import { runLogin, runLogout, runWhoami } from './commands/login.js';
 import { runPush } from './commands/push.js';
+import { runCi } from './commands/ci.js';
 import { runCompletion } from './commands/completion.js';
 import { runSettings } from './commands/settings.js';
 import { runExport } from './commands/export.js';
@@ -28,10 +29,23 @@ import { paletteAvailable, runPalette } from './ui/palette.js';
 import { maybeNotifyUpdate } from './ui/update-check.js';
 import { CLI_VERSION } from './version.js';
 import { stripLangFlag, tr } from './i18n.js';
+import { CLOUD_COMMANDS, CLOUD_ENABLED } from './cloud.js';
 import { existsSync } from 'node:fs';
 import { RC_FILENAME } from './config/rc.js';
 
 async function dispatch(command: string, rest: readonly string[]): Promise<number> {
+  // Axara Cloud désactivé pour le moment (voir cloud.ts) : les commandes de
+  // compte sont refusées avec un message clair plutôt qu'un « inconnue ».
+  if (!CLOUD_ENABLED && CLOUD_COMMANDS.has(command)) {
+    process.stderr.write(
+      tr(
+        `La commande \`${command}\` fait partie d'Axara Cloud, momentanément indisponible.\n`,
+        `The \`${command}\` command is part of Axara Cloud, temporarily unavailable.\n`,
+      ),
+    );
+    return 2;
+  }
+
   // `axaraaudit <commande> --help` : aide ciblée avant que parseArgs ne
   // rejette l'option inconnue.
   if (rest.includes('--help') || rest.includes('-h')) {
@@ -71,6 +85,8 @@ async function dispatch(command: string, rest: readonly string[]): Promise<numbe
       return runLogout();
     case 'whoami':
       return runWhoami();
+    case 'ci':
+      return runCi(rest);
     case 'completion':
       return runCompletion(rest);
     case 'settings':

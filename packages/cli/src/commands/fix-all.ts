@@ -25,6 +25,7 @@ import { resolveAnthropicKey } from '../config/credentials.js';
 import { requestFileFix, ClaudeError, CLAUDE_MODEL } from '../services/claude.js';
 import { bold, cyan, dim, green, red, yellow } from '../report/render.js';
 import { tr } from '../i18n.js';
+import { CLOUD_ENABLED } from '../cloud.js';
 import { createSpinner } from '../ui/spinner.js';
 import { canSelect, selectOption, type SelectChoice } from '../ui/select.js';
 import { printTips, type Tip } from '../ui/tips.js';
@@ -102,7 +103,13 @@ export async function runFixAll(argv: readonly string[]): Promise<number> {
         `    1. Create an API key at ${cyan('https://console.anthropic.com/settings/keys')}\n`,
       ),
     );
-    out(`    2. ${bold('axaraaudit login --anthropic-key sk-ant-...')}\n`);
+    out(
+      `    2. ${bold(
+        CLOUD_ENABLED
+          ? 'axaraaudit login --anthropic-key sk-ant-...'
+          : tr('axaraaudit settings — ligne « Clé Anthropic »', 'axaraaudit settings — “Anthropic key” row'),
+      )}\n`,
+    );
     out(
       dim(
         tr(

@@ -14,6 +14,7 @@ import { boldOn, gradient, paintFg, reset, stdoutLevel, type ColorLevel } from '
 import { BRAND } from '../ui/theme.js';
 import { tr } from '../i18n.js';
 import { CLI_NAME, CLI_VERSION } from '../version.js';
+import { CLOUD_COMMANDS, CLOUD_ENABLED } from '../cloud.js';
 
 export interface CommandSpec {
   readonly name: string;
@@ -37,7 +38,7 @@ interface CommandGroup {
   readonly commands: readonly CommandSpec[];
 }
 
-export const GROUPS: readonly CommandGroup[] = [
+const CATALOG: readonly CommandGroup[] = [
   {
     icon: '🔍',
     title: tr('DIAGNOSTIQUER', 'DIAGNOSE'),
@@ -140,6 +141,49 @@ export const GROUPS: readonly CommandGroup[] = [
           ],
         ],
         next: ['fix'],
+      },
+      {
+        name: 'ci',
+        brief: tr(
+          'Intégration pipeline : workflow prêt à l’emploi + commentaire de PR (diff uniquement)',
+          'Pipeline integration: ready-made workflow + PR comment (diff only)',
+        ),
+        keywords: ['ci', 'cd', 'pipeline', 'github', 'actions', 'gitlab', 'pr', 'mr', 'pull request', 'merge request', 'commentaire', 'comment', 'diff', 'gate', 'workflow', 'seuil', 'threshold'],
+        usage: tr(
+          'axaraaudit ci <comment|init> [options]',
+          'axaraaudit ci <comment|init> [options]',
+        ),
+        options: [
+          [
+            'init [github|gitlab]',
+            tr(
+              'écrit le workflow (audit + gate + commentaire de diff)',
+              'writes the workflow (audit + gate + diff comment)',
+            ),
+          ],
+          [
+            tr('comment --base <rapport.json>', 'comment --base <report.json>'),
+            tr('rapport JSON de la branche de base (pour le diff)', 'base-branch JSON report (feeds the diff)'),
+          ],
+          [
+            tr('comment --head <rapport.json>', 'comment --head <report.json>'),
+            tr('rapport de la branche courante (défaut : audit frais)', 'current-branch report (default: fresh audit)'),
+          ],
+          [
+            '--dry-run',
+            tr('affiche le markdown sans rien publier', 'prints the markdown without publishing anything'),
+          ],
+          ['--force', tr('init : écrase un workflow existant', 'init: overwrites an existing workflow')],
+        ],
+        examples: [
+          ['axaraaudit ci init github', tr('workflow GitHub Actions prêt à commiter', 'GitHub Actions workflow ready to commit')],
+          [
+            'axaraaudit ci comment --base base.json --head head.json',
+            tr('commentaire sticky : nouvelles / corrigées uniquement', 'sticky comment: new / fixed only'),
+          ],
+          ['axaraaudit audit --ci --fail-under 80', tr('le gate lui-même (exit 1 sous le seuil)', 'the gate itself (exit 1 below the threshold)')],
+        ],
+        next: ['audit', 'export'],
       },
     ],
   },
@@ -474,6 +518,29 @@ export const GROUPS: readonly CommandGroup[] = [
     ],
   },
 ] as const;
+
+/** Option purement cloud (--remote / --upload) — masquée quand le cloud est off. */
+function isCloudOption(option: readonly [flag: string, doc: string]): boolean {
+  return option[0].includes('--remote') || option[0].includes('--upload');
+}
+
+/**
+ * Catalogue visible : tant qu'Axara Cloud est désactivé (voir cloud.ts), les
+ * commandes de compte et les options Pro sont retirées d'ici — l'aide, la
+ * palette, les complétions et « vouliez-vous dire ? » en dérivent tous.
+ */
+export const GROUPS: readonly CommandGroup[] = CLOUD_ENABLED
+  ? CATALOG
+  : CATALOG.map((group) => ({
+      ...group,
+      commands: group.commands
+        .filter((cmd) => !CLOUD_COMMANDS.has(cmd.name))
+        .map((cmd) => ({
+          ...cmd,
+          ...(cmd.options !== undefined ? { options: cmd.options.filter((o) => !isCloudOption(o)) } : {}),
+          ...(cmd.next !== undefined ? { next: cmd.next.filter((n) => !CLOUD_COMMANDS.has(n)) } : {}),
+        })),
+    })).filter((group) => group.commands.length > 0);
 
 const ALL: readonly CommandSpec[] = GROUPS.flatMap((g) => g.commands);
 

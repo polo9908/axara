@@ -14,10 +14,21 @@ describe('flagsOf', () => {
     expect(flags).not.toContain('pretty|json|html');
   });
 
-  it('sépare les flags combinés « --remote / --upload »', () => {
-    const flags = flagsOf(findCommand('audit')!);
+  it('sépare les flags combinés « --a / --b »', () => {
+    const spec = { name: 'x', brief: '', usage: '', options: [['--remote / --upload', '']] } as const;
+    const flags = flagsOf(spec);
     expect(flags).toContain('--remote');
     expect(flags).toContain('--upload');
+  });
+
+  it('cloud désactivé : ni commandes de compte ni flags --remote/--upload', () => {
+    expect(NAMES).not.toContain('push');
+    expect(NAMES).not.toContain('login');
+    expect(NAMES).not.toContain('logout');
+    expect(NAMES).not.toContain('whoami');
+    const flags = flagsOf(findCommand('audit')!);
+    expect(flags).not.toContain('--remote');
+    expect(flags).not.toContain('--upload');
   });
 
   it('retourne [] quand la commande n’a pas d’options', () => {

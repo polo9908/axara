@@ -10,7 +10,13 @@ import { isAbsolute, relative } from 'node:path';
 import type { AuditReport } from '../analyzer/audit.js';
 import type { RgaaFinding } from '../rgaa/types.js';
 import type { DriftIssue } from '../types.js';
-import { driftIdentity, fingerprintAll, rgaaIdentity } from './fingerprint.js';
+import type {
+  ExceptedDriftIssue,
+  ExceptedRgaaFinding,
+  ExceptionOrigin,
+  ExceptionsSummary,
+} from './exceptions.js';
+import { driftIdentity, fingerprintAll, normalizeFingerprintPath, rgaaIdentity } from './fingerprint.js';
 import type { GateResult, FileRgaaFinding, ScoreBreakdown } from './score.js';
 
 // v2 : courbe de score asymptotique (plus de clamp à 0) + sous-scores
@@ -21,6 +27,15 @@ import type { GateResult, FileRgaaFinding, ScoreBreakdown } from './score.js';
 // pour la stabilité du contrat. / v2 additive: `designSystem { enabled,
 // origin }` — when `enabled` is false (no design system, RGAA-only audit),
 // `scores.design` stays at 100 for contract stability.
+// v2 additif (bis) : bloc `exceptions {declared, applied, unmatched}` quand la
+// config déclare des exceptions justifiées ; les violations exceptées sont
+// absentes des listes et du score. Les chemins des issues de drift sont
+// désormais relatifs POSIX (comme les constats RGAA et les empreintes) — le
+// payload est portable d'un checkout à l'autre. / v2 additive (bis):
+// `exceptions {declared, applied, unmatched}` block when the config declares
+// justified exceptions; excepted violations are absent from the lists and the
+// score. Drift issue paths are now POSIX-relative (like RGAA findings and
+// fingerprints) — the payload is portable across checkouts.
 export const PAYLOAD_VERSION = 2;
 
 export interface RgaaAggregate {
@@ -67,6 +82,26 @@ export interface AuditPayload {
       readonly fingerprint: string;
     })[];
   };
+  /** Présent quand des exceptions sont déclarées (config ou inline, additif). */
+  readonly exceptions?: ExceptionsSummary;
+  /**
+   * Violations couvertes par une exception justifiée — section SÉPARÉE des
+   * violations comptées : hors score et hors gate, mais tracées intégralement
+   * (raison + origine). Jamais un retrait silencieux.
+   */
+  readonly excepted?: {
+    readonly drift: readonly (DriftIssue & {
+      readonly fingerprint: string;
+      readonly reason: string;
+      readonly origin: ExceptionOrigin;
+    })[];
+    readonly rgaa: readonly (RgaaFinding & {
+      readonly file: string;
+      readonly fingerprint: string;
+      readonly reason: string;
+      readonly origin: ExceptionOrigin;
+    })[];
+  };
 }
 
 export function aggregateRgaa(
@@ -110,19 +145,41 @@ export interface BuildAuditPayloadArgs {
   readonly ciMode: boolean;
   /** Provenance des tokens (origin de ResolvedTokensSource). */
   readonly tokensOrigin: string;
+  /**
+   * Empreintes précalculées, alignées sur `drift.issues` / `rgaaFindings`
+   * (chemin exceptions : elles DOIVENT venir des listes complètes, avant
+   * filtrage — les rangs des doublons en dépendent). Sinon calculées ici.
+   */
+  readonly driftFingerprints?: readonly string[];
+  readonly rgaaFingerprints?: readonly string[];
+  /** Synthèse des exceptions justifiées ; omise si aucune n'est déclarée. */
+  readonly exceptions?: ExceptionsSummary;
+  /** Violations exceptées, tracées dans la section `excepted` du payload. */
+  readonly excepted?: {
+    readonly drift: readonly ExceptedDriftIssue[];
+    readonly rgaa: readonly ExceptedRgaaFinding[];
+  };
+}
+
+/** Chemin d'issue de drift → forme relative POSIX du payload. */
+export function payloadDriftFile(rootDir: string, file: string): string {
+  return normalizeFingerprintPath(isAbsolute(file) ? relative(rootDir, file) : file);
 }
 
 export function buildAuditPayload(args: BuildAuditPayloadArgs): AuditPayload {
-  // Drift issues carry absolute paths (fix pass needs them); fingerprints hash
-  // the root-relative form. RGAA findings are already root-relative.
-  const driftFingerprints = fingerprintAll(
-    args.drift.issues.map((issue) =>
-      driftIdentity(issue, isAbsolute(issue.file) ? relative(args.rootDir, issue.file) : issue.file),
-    ),
-  );
-  const rgaaFingerprints = fingerprintAll(
-    args.rgaaFindings.map(({ file, finding }) => rgaaIdentity(finding, file)),
-  );
+  // Drift issues carry absolute paths in-process (fix pass needs them); the
+  // payload stores the POSIX root-relative form, same as fingerprints and
+  // RGAA findings — portable across machines and checkouts.
+  const driftFingerprints =
+    args.driftFingerprints ??
+    fingerprintAll(
+      args.drift.issues.map((issue) =>
+        driftIdentity(issue, payloadDriftFile(args.rootDir, issue.file)),
+      ),
+    );
+  const rgaaFingerprints =
+    args.rgaaFingerprints ??
+    fingerprintAll(args.rgaaFindings.map(({ file, finding }) => rgaaIdentity(finding, file)));
   return {
     tool: args.tool,
     toolVersion: args.toolVersion,
@@ -143,6 +200,7 @@ export function buildAuditPayload(args: BuildAuditPayloadArgs): AuditPayload {
       tokenErrors: args.drift.tokenErrors,
       issues: args.drift.issues.map((issue, i) => ({
         ...issue,
+        file: payloadDriftFile(args.rootDir, issue.file),
         fingerprint: driftFingerprints[i] as string,
       })),
     },
@@ -151,9 +209,27 @@ export function buildAuditPayload(args: BuildAuditPayloadArgs): AuditPayload {
       aggregate: aggregateRgaa(args.rgaaFilesAudited, args.rgaaFindings),
       findings: args.rgaaFindings.map(({ file, finding }, i) => ({
         ...finding,
-        file,
+        file: normalizeFingerprintPath(file),
         fingerprint: rgaaFingerprints[i] as string,
       })),
     },
+    ...(args.exceptions !== undefined ? { exceptions: args.exceptions } : {}),
+    ...(args.excepted !== undefined
+      ? {
+          excepted: {
+            drift: args.excepted.drift.map((issue) => ({
+              ...issue,
+              file: payloadDriftFile(args.rootDir, issue.file),
+            })),
+            rgaa: args.excepted.rgaa.map(({ file, finding, fingerprint, reason, origin }) => ({
+              ...finding,
+              file: normalizeFingerprintPath(file),
+              fingerprint,
+              reason,
+              origin,
+            })),
+          },
+        }
+      : {}),
   };
 }

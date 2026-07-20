@@ -31,6 +31,7 @@ import {
   TOKEN_ENV_VAR,
 } from '../config/credentials.js';
 import { readSettings, saveSettings } from '../config/settings.js';
+import { CLOUD_ENABLED } from '../cloud.js';
 import {
   installMcp,
   mcpStatus,
@@ -111,12 +112,17 @@ function buildSections(level: ColorLevel): readonly Section[] {
       icon: '🔑',
       title: tr('COMPTE & JETONS', 'ACCOUNT & TOKENS'),
       rows: [
-        {
-          label: tr('Jeton Pro', 'Pro token'),
-          value: tokenValue,
-          clearable: stored?.token !== undefined,
-          action: { kind: 'edit-token' },
-        },
+        // Jeton Pro : masqué tant qu'Axara Cloud est désactivé (voir cloud.ts).
+        ...(CLOUD_ENABLED
+          ? [
+              {
+                label: tr('Jeton Pro', 'Pro token'),
+                value: tokenValue,
+                clearable: stored?.token !== undefined,
+                action: { kind: 'edit-token' } as const,
+              },
+            ]
+          : []),
         {
           label: tr('Clé Anthropic', 'Anthropic key'),
           value: anthropicValue,
@@ -487,8 +493,12 @@ function printSummary(): number {
   lines.push(
     `  ${paintFg('✦', BRAND.violet, level)} ${paintFg(
       tr(
-        'Modifier : `settings set lang fr|en|auto` · `settings set update-check on|off` · `settings mcp install <client>` · jetons via `login`',
-        'Change: `settings set lang fr|en|auto` · `settings set update-check on|off` · `settings mcp install <client>` · tokens via `login`',
+        CLOUD_ENABLED
+          ? 'Modifier : `settings set lang fr|en|auto` · `settings set update-check on|off` · `settings mcp install <client>` · jetons via `login`'
+          : 'Modifier : `settings set lang fr|en|auto` · `settings set update-check on|off` · `settings mcp install <client>` · jetons via le panneau interactif',
+        CLOUD_ENABLED
+          ? 'Change: `settings set lang fr|en|auto` · `settings set update-check on|off` · `settings mcp install <client>` · tokens via `login`'
+          : 'Change: `settings set lang fr|en|auto` · `settings set update-check on|off` · `settings mcp install <client>` · tokens via the interactive panel',
       ),
       BRAND.slate,
       level,

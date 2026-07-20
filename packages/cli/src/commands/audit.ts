@@ -22,6 +22,7 @@ import { canReveal, revealScore } from '../ui/reveal.js';
 import { createSpinner } from '../ui/spinner.js';
 import { printTips, type Tip } from '../ui/tips.js';
 import { CLI_NAME, CLI_VERSION } from '../version.js';
+import { CLOUD_ENABLED } from '../cloud.js';
 
 export interface AuditFlags {
   readonly config?: string;
@@ -91,12 +92,23 @@ export async function runAudit(argv: readonly string[]): Promise<number> {
     process.stderr.write(renderBanner(stderrLevel));
   }
 
+  // Axara Cloud désactivé (voir cloud.ts) : --remote/--upload refusés
+  // explicitement, pro.remoteConfig/pro.upload de la config ignorés.
+  if (!CLOUD_ENABLED && (flags.remote || flags.upload)) {
+    throw new ConfigError(
+      tr(
+        'Les options --remote et --upload font partie d’Axara Cloud, momentanément indisponible.',
+        'The --remote and --upload options are part of Axara Cloud, temporarily unavailable.',
+      ),
+    );
+  }
+
   let loaded = loadRc(cwd, flags.config);
   const token = resolveToken();
 
   // ── Pro: remote config/tokens (explicit --remote or rc.pro.remoteConfig) ──
   let inlineTokensJson: string | null = null;
-  const wantRemote = flags.remote || loaded.rc.pro.remoteConfig;
+  const wantRemote = CLOUD_ENABLED && (flags.remote || loaded.rc.pro.remoteConfig);
   if (wantRemote) {
     if (token === null) {
       if (flags.remote) {
@@ -196,6 +208,37 @@ export async function runAudit(argv: readonly string[]): Promise<number> {
     );
   }
 
+  if (flags.format === 'pretty' && result.exceptions.applied > 0) {
+    log(
+      dim(
+        tr(
+          `  ${result.exceptions.applied} violation(s) couverte(s) par une exception justifiée — hors score et hors gate.`,
+          `  ${result.exceptions.applied} violation(s) covered by a justified exception — excluded from score and gate.`,
+        ),
+      ),
+    );
+  }
+  for (const bad of result.exceptions.invalid) {
+    log(
+      yellow(
+        tr(
+          `⚠ axara-ignore sans raison ignoré : ${bad.file}:L${bad.line} (${bad.rule}) — ajoutez raison="…".`,
+          `⚠ Reason-less axara-ignore skipped: ${bad.file}:L${bad.line} (${bad.rule}) — add reason="…".`,
+        ),
+      ),
+    );
+  }
+  if (flags.format === 'pretty' && result.exceptions.unmatched.length > 0) {
+    log(
+      yellow(
+        tr(
+          `⚠ ${result.exceptions.unmatched.length} exception(s) sans violation correspondante — à nettoyer dans .auditorrc.json.`,
+          `⚠ ${result.exceptions.unmatched.length} exception(s) match no violation — clean them up in .auditorrc.json.`,
+        ),
+      ),
+    );
+  }
+
   const json = JSON.stringify(payload, null, 2);
   // Sur TTY, la section SCORE textuelle cède la place à la révélation animée.
   const animateScore = flags.format !== 'json' && canReveal();
@@ -227,7 +270,7 @@ export async function runAudit(argv: readonly string[]): Promise<number> {
   }
 
   // ── Pro: upload (explicit --upload or rc.pro.upload) ──
-  if (flags.upload || rc.pro.upload) {
+  if (CLOUD_ENABLED && (flags.upload || rc.pro.upload)) {
     if (token === null) {
       log(
         yellow(
