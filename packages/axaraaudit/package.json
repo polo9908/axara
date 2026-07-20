@@ -1,6 +1,6 @@
 {
   "name": "axaraaudit",
-  "version": "0.11.0",
+  "version": "0.12.0",
   "description": "AxaraAudit — alias de @axaraaudit/cli pour que `npx axaraaudit` fonctionne tel quel (audit design-system + RGAA 4.1)",
   "license": "MIT",
   "type": "module",
