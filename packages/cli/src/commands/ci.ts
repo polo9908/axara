@@ -287,8 +287,8 @@ async function runCiComment(argv: readonly string[]): Promise<number> {
 
 // ── ci init ────────────────────────────────────────────────────────────────
 
-const GITHUB_WORKFLOW_PATH = '.github/workflows/axaraaudit.yml';
-const GITLAB_SNIPPET_PATH = 'axaraaudit.gitlab-ci.yml';
+export const GITHUB_WORKFLOW_PATH = '.github/workflows/axaraaudit.yml';
+export const GITLAB_SNIPPET_PATH = 'axaraaudit.gitlab-ci.yml';
 
 /** Template GitHub Actions — prêt à copier-coller tel quel. */
 export function githubWorkflowTemplate(): string {
@@ -365,6 +365,22 @@ axaraaudit:
 `;
 }
 
+/**
+ * Écrit le template du fournisseur ; retourne son chemin. Partagé entre le
+ * chemin scripté (`ci init`) et le wizard interactif (`ci` sans argument).
+ */
+export function writeCiTemplate(provider: 'github' | 'gitlab', force: boolean): string {
+  const path = provider === 'github' ? GITHUB_WORKFLOW_PATH : GITLAB_SNIPPET_PATH;
+  if (existsSync(path) && !force) {
+    throw new ConfigError(
+      tr(`${path} existe déjà — relancez avec --force pour l'écraser.`, `${path} already exists — re-run with --force to overwrite.`),
+    );
+  }
+  mkdirSync(dirname(path), { recursive: true });
+  writeFileSync(path, provider === 'github' ? githubWorkflowTemplate() : gitlabTemplate(), 'utf8');
+  return path;
+}
+
 function runCiInit(argv: readonly string[]): number {
   const { values, positionals } = parseArgs({
     args: [...argv],
@@ -381,14 +397,7 @@ function runCiInit(argv: readonly string[]): number {
     );
   }
 
-  const path = provider === 'github' ? GITHUB_WORKFLOW_PATH : GITLAB_SNIPPET_PATH;
-  if (existsSync(path) && values.force !== true) {
-    throw new ConfigError(
-      tr(`${path} existe déjà — relancez avec --force pour l'écraser.`, `${path} already exists — re-run with --force to overwrite.`),
-    );
-  }
-  mkdirSync(dirname(path), { recursive: true });
-  writeFileSync(path, provider === 'github' ? githubWorkflowTemplate() : gitlabTemplate(), 'utf8');
+  const path = writeCiTemplate(provider, values.force ?? false);
 
   log(green(tr(`✓ ${path} écrit.`, `✓ ${path} written.`)));
   if (provider === 'github') {
@@ -419,12 +428,26 @@ export async function runCi(argv: readonly string[]): Promise<number> {
   const sub = argv[0];
   if (sub === 'comment') return runCiComment(argv.slice(1));
   if (sub === 'init') return runCiInit(argv.slice(1));
+
+  // Sans sous-commande sur un TTY : l'assistant guidé (détection du remote,
+  // choix du fournisseur, prochaines étapes). Import différé — le wizard tire
+  // l'UI interactive, inutile dans les pipelines.
+  if (sub === undefined || sub === '--force') {
+    const { canSelect } = await import('../ui/select.js');
+    if (canSelect()) {
+      const { runCiWizard } = await import('./ci-wizard.js');
+      return runCiWizard({ cwd: process.cwd(), force: sub === '--force' });
+    }
+  }
+
   process.stderr.write(
     tr(
-      'Usage : axaraaudit ci <comment|init>\n' +
+      'Usage : axaraaudit ci [comment|init]\n' +
+        '  ci                                             assistant guidé (TTY)\n' +
         '  ci comment --base base.json --head head.json   commentaire de PR (diff uniquement)\n' +
         '  ci init [github|gitlab]                        écrit le workflow prêt à l’emploi\n',
-      'Usage: axaraaudit ci <comment|init>\n' +
+      'Usage: axaraaudit ci [comment|init]\n' +
+        '  ci                                             guided assistant (TTY)\n' +
         '  ci comment --base base.json --head head.json   PR comment (diff only)\n' +
         '  ci init [github|gitlab]                        writes the ready-made workflow\n',
     ),

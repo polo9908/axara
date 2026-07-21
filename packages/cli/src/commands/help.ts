@@ -150,10 +150,17 @@ const CATALOG: readonly CommandGroup[] = [
         ),
         keywords: ['ci', 'cd', 'pipeline', 'github', 'actions', 'gitlab', 'pr', 'mr', 'pull request', 'merge request', 'commentaire', 'comment', 'diff', 'gate', 'workflow', 'seuil', 'threshold'],
         usage: tr(
-          'axaraaudit ci <comment|init> [options]',
-          'axaraaudit ci <comment|init> [options]',
+          'axaraaudit ci [comment|init] [options]',
+          'axaraaudit ci [comment|init] [options]',
         ),
         options: [
+          [
+            tr('(sans argument)', '(no argument)'),
+            tr(
+              'assistant guidé : détecte votre dépôt, installe le workflow, explique la suite',
+              'guided assistant: detects your repo, installs the workflow, explains what’s next',
+            ),
+          ],
           [
             'init [github|gitlab]',
             tr(
@@ -176,6 +183,7 @@ const CATALOG: readonly CommandGroup[] = [
           ['--force', tr('init : écrase un workflow existant', 'init: overwrites an existing workflow')],
         ],
         examples: [
+          ['axaraaudit ci', tr('connexion du dépôt guidée, pas à pas', 'guided repo connection, step by step')],
           ['axaraaudit ci init github', tr('workflow GitHub Actions prêt à commiter', 'GitHub Actions workflow ready to commit')],
           [
             'axaraaudit ci comment --base base.json --head head.json',
