@@ -44,6 +44,34 @@ describe('analyzeTsx', () => {
     expect(issues[0]!.property).toBe('literal');
   });
 
+  it('never marks exact matches in ordinary strings as auto-fixable', () => {
+    // A var(--x) rewrite is only valid in CSS; a plain JS string (canvas
+    // color, chart config, …) must not be touched by `fix --write`.
+    const src = "const theme = { primary: '#3b82f6' };";
+    const issues = analyzeTsx(src, index);
+    expect(issues[0]!.match).toBe('exact-token');
+    expect(issues[0]!.autoFixable).toBe(false);
+  });
+
+  it('does not treat named-color words in class names as colors', () => {
+    const { index: whiteIndex } = parseDtcg({
+      color: { $type: 'color', white: { $value: '#ffffff' } },
+    });
+    const src = 'export const A = () => <div className="bg-white text-white">x</div>;';
+    expect(analyzeTsx(src, whiteIndex)).toHaveLength(0);
+  });
+
+  it('still flags and auto-fixes named colors inside style objects', () => {
+    const { index: whiteIndex } = parseDtcg({
+      color: { $type: 'color', white: { $value: '#ffffff' } },
+    });
+    const src = "export const A = () => <div style={{ color: 'white' }} />;";
+    const issues = analyzeTsx(src, whiteIndex);
+    expect(issues).toHaveLength(1);
+    expect(issues[0]!.match).toBe('exact-token');
+    expect(issues[0]!.autoFixable).toBe(true);
+  });
+
   it('ignores string spacing values outside style objects', () => {
     const src = "const gap = '8px';";
     // colors only are scanned in generic strings, so a lone spacing string is ignored

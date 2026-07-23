@@ -5,9 +5,10 @@
  *  1. Inline `style={{ … }}` objects — property names give us the CSS context,
  *     so both colors and spacing are checked with the right semantics (a bare
  *     numeric on a spacing prop is treated as `px`, matching React).
- *  2. Every other string / template literal — scanned for color literals only
- *     (catches styled-components, theme constants, class-variance maps, …),
- *     where there is no property context to justify a spacing check.
+ *  2. Every other string / template literal — scanned for hex/functional color
+ *     literals only (catches styled-components, theme constants, …). No CSS
+ *     property context means no spacing check, no bare named colors (`white`
+ *     in `bg-white` is not a color), and no auto-fix (reported only).
  */
 
 import ts from 'typescript';
@@ -41,8 +42,15 @@ export function analyzeTsx(
     return { line: lc.line + 1, column: lc.character + 1 };
   };
 
-  const pushColor = (node: ts.Node, quoteOffset: number, property: string, text: string): void => {
-    for (const occ of extractColors(text)) {
+  const pushColor = (
+    node: ts.Node,
+    quoteOffset: number,
+    property: string,
+    text: string,
+    extras: Pick<LiteralOccurrence, 'noAutoFix'> & { readonly named?: boolean } = {},
+  ): void => {
+    const { named, ...carriers } = extras;
+    for (const occ of extractColors(text, named === undefined ? {} : { named })) {
       const pos = positionAt(node, quoteOffset + occ.offset);
       const occurrence: LiteralOccurrence = {
         file,
@@ -50,6 +58,7 @@ export function analyzeTsx(
         column: pos.column,
         property,
         value: occ.raw,
+        ...carriers,
       };
       const issue = evaluateColor(occurrence, index);
       if (issue) issues.push(issue);
@@ -131,13 +140,17 @@ export function analyzeTsx(
   };
   visitStyles(sf);
 
-  // Pass 2: every remaining string-like literal, colors only.
+  // Pass 2: every remaining string-like literal, colors only. Without a CSS
+  // property context, a bare word like `white` is usually not a color
+  // (`className="bg-white"`, user-facing copy) and a `var(--x)` rewrite may
+  // land outside CSS (canvas, chart config): detect hex/functional colors
+  // only, and never auto-fix here.
   const visitLiterals = (node: ts.Node): void => {
     if (
       (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)) &&
       !consumed.has(node)
     ) {
-      pushColor(node, 1, 'literal', node.text);
+      pushColor(node, 1, 'literal', node.text, { named: false, noAutoFix: true });
     }
     ts.forEachChild(node, visitLiterals);
   };

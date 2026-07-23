@@ -66,4 +66,10 @@ describe('analyzeCss', () => {
     expect(issues).toHaveLength(2);
     expect(issues.map((i) => i.suggestion!.token)).toEqual(['space.sm', 'space.md']);
   });
+
+  it('skips unparseable preprocessor syntax instead of throwing', () => {
+    const scss = '.icon-#{$name} { color: #123456; }';
+    expect(() => analyzeCss(scss, index, { file: 'a.scss' })).not.toThrow();
+    expect(analyzeCss(scss, index, { file: 'a.scss' })).toEqual([]);
+  });
 });

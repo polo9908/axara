@@ -73,12 +73,22 @@ function pushUnique(map: Map<number, Occurrence>, occ: Occurrence): void {
   if (!map.has(occ.offset)) map.set(occ.offset, occ);
 }
 
+export interface ExtractColorOptions {
+  /**
+   * Include bare named colors (`white`, `red`, …). Default: true. Disabled in
+   * contexts without CSS semantics (arbitrary JS/JSX strings), where a word
+   * like `white` is usually not a color (`bg-white`, user-facing copy, …).
+   */
+  readonly named?: boolean;
+}
+
 /** All color literals in a CSS value (var() references are ignored). */
-export function extractColors(value: string): Occurrence[] {
+export function extractColors(value: string, options: ExtractColorOptions = {}): Occurrence[] {
   const masked = maskVarReferences(value);
   const found = new Map<number, Occurrence>();
+  const regexes = options.named === false ? [HEX_RE, FUNC_RE] : [HEX_RE, FUNC_RE, NAMED_RE];
 
-  for (const re of [HEX_RE, FUNC_RE, NAMED_RE]) {
+  for (const re of regexes) {
     re.lastIndex = 0;
     let m: RegExpExecArray | null;
     while ((m = re.exec(masked)) !== null) {

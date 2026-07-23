@@ -24,6 +24,11 @@ export interface LiteralOccurrence {
   readonly sourceText?: string;
   /** Entourer le remplacement de quotes (contexte JSX numérique). */
   readonly quoteFix?: boolean;
+  /**
+   * Contexte sans sémantique CSS garantie (chaîne JS/JSX quelconque) : l'issue
+   * est rapportée mais jamais auto-fixée — `var(--x)` n'a de sens qu'en CSS.
+   */
+  readonly noAutoFix?: boolean;
 }
 
 /** Champs de fix propagés de l'occurrence vers l'issue. */
@@ -74,7 +79,7 @@ export function evaluateColor(
       severity: 'warning',
       match: 'exact-token',
       message: `Hard-coded color "${value}" matches token ${exact.path}. Use ${suggestion.replacement}.`,
-      autoFixable: true,
+      autoFixable: occurrence.noAutoFix !== true,
       suggestion,
     };
   }

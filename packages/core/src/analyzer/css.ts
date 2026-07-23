@@ -65,7 +65,14 @@ export function analyzeCss(
   options: CssAnalyzeOptions = {},
 ): DriftIssue[] {
   const file = options.file ?? '<css>';
-  const root = postcss.parse(css, { from: file });
+  let root;
+  try {
+    root = postcss.parse(css, { from: file });
+  } catch {
+    // Preprocessor syntax PostCSS can't parse (SCSS `#{…}` interpolation, LESS
+    // mixins, …): an auditor degrades per file, it never fails the whole run.
+    return [];
+  }
   const issues: DriftIssue[] = [];
 
   root.walkDecls((decl) => {
